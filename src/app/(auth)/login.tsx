@@ -4,14 +4,17 @@ import { useRouter, Link } from 'expo-router';
 import { Container, Button, Input, Layout } from '../../components/ui';
 import { Text as CustomText } from '../../components/ui/text';
 import { useColors } from '../../hooks/useColors';
+import { useAuth } from '../../contexts';
 import { spacing } from '../../../themes';
 
 export default function LoginScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
@@ -23,13 +26,27 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      // Navigate to main app on success
+    try {
+      await signIn(email, password);
       router.replace('/(app)');
-    }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      router.replace('/(app)');
+    } catch (err: any) {
+      setError(err.message || 'Failed to sign in with Google');
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -92,8 +109,23 @@ export default function LoginScreen() {
               <Button
                 title={loading ? 'Signing In...' : 'Sign In'}
                 onPress={handleLogin}
-                disabled={loading}
+                disabled={loading || googleLoading}
                 style={styles.loginButton}
+              />
+
+              <View style={styles.dividerContainer}>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.text }]}>OR</Text>
+                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              </View>
+
+              <Button
+                title={googleLoading ? 'Signing In...' : 'Continue with Google'}
+                onPress={handleGoogleSignIn}
+                variant="outline"
+                disabled={loading || googleLoading}
+                loading={googleLoading}
+                style={styles.googleButton}
               />
             </View>
 
@@ -150,6 +182,23 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: spacing.md,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    marginHorizontal: spacing.sm,
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  googleButton: {
+    marginTop: spacing.xs,
   },
   footer: {
     flexDirection: 'row',

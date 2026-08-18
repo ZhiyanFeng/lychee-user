@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "656805707235",
-    "project_id": "lychee-moving",
-    "storage_bucket": "lychee-moving.firebasestorage.app"
+    "project_number": "421396089888",
+    "project_id": "lycheetech-moving",
+    "storage_bucket": "lycheetech-moving.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:656805707235:android:69332192eb6487d7b374d6",
+        "mobilesdk_app_id": "1:421396089888:android:009648bea2d890d47b8045",
         "android_client_info": {
           "package_name": "com.lycheetech.moving"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "421396089888-76q98t5rkoo42k2a4tc0mrod0pdtq61l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lycheetech.moving",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "421396089888-pjujm9ns7dervsss2mdcgtpbqgrtp3nu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCEi7-P_5ikOkwAcGUf6nhYpK201wu6_B8"
+          "current_key": "AIzaSyAGiY2ytKWEYg41IM8xmFgjAKPkR3Plva8"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "421396089888-pjujm9ns7dervsss2mdcgtpbqgrtp3nu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { firebaseAuth } from '../config/firebase';
+import { firebaseAuth, GoogleAuthProvider } from '../config/firebase';
+import { signIn as credentialManagerSignIn, GoogleCredential } from 'react-native-credentials-manager';
+import { GOOGLE_WEB_CLIENT_ID } from '../constants';
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -48,6 +51,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const credential = (await credentialManagerSignIn(['google-signin'], {
+        googleSignIn: {
+          serverClientId: GOOGLE_WEB_CLIENT_ID,
+          autoSelectEnabled: true,
+          filterByAuthorizedAccounts: false, // show all Google accounts, not just previously-used ones
+        },
+      })) as GoogleCredential;
+
+      if (!credential?.idToken) {
+        throw new Error('No ID token returned from Google Sign-In');
+      }
+
+      const googleCredential = GoogleAuthProvider.credential(credential.idToken);
+      await firebaseAuth.signInWithCredential(googleCredential);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to sign in with Google');
+    }
+  };
+
   const signOut = async () => {
     try {
       await firebaseAuth.signOut();
@@ -69,6 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     resetPassword,
   };

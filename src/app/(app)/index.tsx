@@ -11,7 +11,7 @@ export default function HomeScreen() {
 
   return (
     <Container>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Layout spacing={spacing.lg}>
           {/* Welcome Section */}
           <View style={styles.welcomeSection}>
@@ -87,6 +87,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     paddingVertical: spacing.lg,
   },

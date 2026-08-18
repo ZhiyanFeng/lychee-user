@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Container, Text, Layout } from '../../components/ui';
 import { useColors } from '../../hooks/useColors';
 import { spacing } from '../../../themes';
@@ -9,7 +10,7 @@ export default function ExploreScreen() {
 
   return (
     <Container>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Layout spacing={spacing.lg}>
           <Text variant="title">Explore Services</Text>
 
@@ -17,7 +18,36 @@ export default function ExploreScreen() {
             <Text style={styles.serviceIcon}>🏠</Text>
             <Text variant="body" style={styles.serviceTitle}>Residential Moving</Text>
             <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
-              Complete home moving solutions
+              Full-service residential moving
+            </Text>
+          </View>
+
+          <View style={[styles.serviceCard, { borderColor: colors.border }]}>
+            <Text style={styles.serviceIcon}>📦</Text>
+            <Text variant="body" style={styles.serviceTitle}>Small Moving</Text>
+            <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
+              Small items and furniture moving
+            </Text>
+          </View>
+
+          <View style={[styles.serviceCard, { borderColor: colors.border }]}>
+            <MaterialCommunityIcons
+              name="dump-truck"
+              size={48}
+              color={colors.primary}
+              style={styles.serviceIconVector}
+            />
+            <Text variant="body" style={styles.serviceTitle}>Trash & Garbage Removal</Text>
+            <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
+              Trash and garbage removal
+            </Text>
+          </View>
+
+          <View style={[styles.serviceCard, { borderColor: colors.border }]}>
+            <Text style={styles.serviceIcon}>🚗</Text>
+            <Text variant="body" style={styles.serviceTitle}>Pickup & Drop-off</Text>
+            <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
+              Quick pick-up and drop-off service
             </Text>
           </View>
 
@@ -25,23 +55,15 @@ export default function ExploreScreen() {
             <Text style={styles.serviceIcon}>🏢</Text>
             <Text variant="body" style={styles.serviceTitle}>Commercial Moving</Text>
             <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
-              Office and business relocations
+              Office and commercial relocation services
             </Text>
           </View>
 
           <View style={[styles.serviceCard, { borderColor: colors.border }]}>
-            <Text style={styles.serviceIcon}>📦</Text>
+            <Text style={styles.serviceIcon}>📥</Text>
             <Text variant="body" style={styles.serviceTitle}>Storage Solutions</Text>
             <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
-              Secure storage facilities
-            </Text>
-          </View>
-
-          <View style={[styles.serviceCard, { borderColor: colors.border }]}>
-            <Text style={styles.serviceIcon}>🎨</Text>
-            <Text variant="body" style={styles.serviceTitle}>Packing Services</Text>
-            <Text variant="caption" style={[styles.serviceDescription, { color: colors.text }]}>
-              Professional packing assistance
+              Short-term and long-term storage options
             </Text>
           </View>
         </Layout>
@@ -51,6 +73,9 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     paddingVertical: spacing.lg,
   },
@@ -63,6 +88,9 @@ const styles = StyleSheet.create({
   },
   serviceIcon: {
     fontSize: 48,
+    marginBottom: spacing.sm,
+  },
+  serviceIconVector: {
     marginBottom: spacing.sm,
   },
   serviceTitle: {

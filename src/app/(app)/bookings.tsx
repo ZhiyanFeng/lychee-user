@@ -9,7 +9,7 @@ export default function BookingsScreen() {
 
   return (
     <Container>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Layout spacing={spacing.lg}>
           <View style={styles.header}>
             <Text variant="title">My Bookings</Text>
@@ -56,6 +56,9 @@ export default function BookingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     paddingVertical: spacing.lg,
   },

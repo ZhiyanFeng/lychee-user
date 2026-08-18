@@ -30,6 +30,9 @@ export function Layout({
 
 const styles = StyleSheet.create({
   layout: {
-    flex: 1,
+    // Intentionally no `flex: 1` here — this component is almost always used
+    // as the direct child of a ScrollView. Giving it flex: 1 would clamp its
+    // height to the visible viewport instead of letting it grow to its full
+    // content size, which breaks scrolling to reveal overflowing content.
   },
 });

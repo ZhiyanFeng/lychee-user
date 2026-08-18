@@ -16,7 +16,7 @@ export default function ProfileScreen() {
 
   return (
     <Container>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Layout spacing={spacing.lg}>
           {/* Profile Header */}
           <View style={styles.header}>
@@ -107,6 +107,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     paddingVertical: spacing.lg,
   },

@@ -1,11 +1,17 @@
 // API base URL
 export const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000/api'
+  ? 'http://127.0.0.1:8080/api'
   : 'https://api.production.com';
 
 // App constants
 export const APP_NAME = 'LycheeTech Moving App';
 export const APP_VERSION = '1.0.0';
+
+// OAuth Web Client ID (from google-services.json, client_type: 3)
+// Required by Google Sign-In / Credential Manager to obtain an ID token
+// that can be exchanged for a Firebase credential.
+export const GOOGLE_WEB_CLIENT_ID =
+  '421396089888-pjujm9ns7dervsss2mdcgtpbqgrtp3nu.apps.googleusercontent.com';
 
 // Storage keys
 export const STORAGE_KEYS = {
