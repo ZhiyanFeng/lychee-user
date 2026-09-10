@@ -1,6 +1,11 @@
 // API base URL
+// NOTE: 127.0.0.1/localhost refers to the device/emulator itself, NOT your
+// dev machine — that's why requests were failing with "Network Error".
+//   - Physical device: use your machine's LAN IP (found via `hostname -I`)
+//   - Android Emulator: use 10.0.2.2 instead (special alias to host machine)
+//   - iOS Simulator: 127.0.0.1 works fine (shares host network)
 export const API_BASE_URL = __DEV__
-  ? 'http://127.0.0.1:8080/api'
+  ? 'http://10.0.0.236:8080/api/v1'
   : 'https://api.production.com';
 
 // App constants
@@ -13,6 +18,26 @@ export const APP_VERSION = '1.0.0';
 export const GOOGLE_WEB_CLIENT_ID =
   '421396089888-pjujm9ns7dervsss2mdcgtpbqgrtp3nu.apps.googleusercontent.com';
 
+// Google Places API key for address autocomplete (moving-request wizard).
+// NOTE: This must be a separate key from GOOGLE_WEB_CLIENT_ID above — that
+// one is an OAuth client ID for Firebase/Google Sign-In, this is a Places API
+// key from Google Cloud Console with "Places API" enabled.
+//
+// Used via `react-native-google-places-sdk` (native Places SDK for
+// Android/iOS, initialized once in `app/_layout.tsx`), NOT a raw REST call.
+// Because the native SDK attaches this app's package name + SHA-1
+// certificate fingerprint (Android) / bundle ID (iOS) to every request, the
+// key CAN and SHOULD be restricted:
+//   Console path: APIs & Services > Credentials > (this key) > Application
+//   restrictions > "Android apps" -> add package name `com.lycheetech.moving`
+//   + the SHA-1 fingerprint of your signing cert (debug AND release each
+//   need their own entry — get the debug one via:
+//   `keytool -list -v -keystore android/app/debug.keystore -alias androiddebugkey -storepass android -keypass android`).
+//   Also add an "iOS apps" entry with the bundle ID if/when iOS is built.
+// Also ensure "Places API" (legacy) is enabled under API restrictions, and
+// billing is enabled on the project.
+export const GOOGLE_PLACES_API_KEY = 'AIzaSyBg7fYlAWwn4Fu7BFnKoiV0kT_KoStdEiI';
+
 // Storage keys
 export const STORAGE_KEYS = {
   AUTH_TOKEN: '@auth_token',
@@ -22,11 +47,16 @@ export const STORAGE_KEYS = {
 
 // API endpoints
 export const API_ENDPOINTS = {
-  LOGIN: '/auth/login',
-  REGISTER: '/auth/register',
+  // NOTE: No LOGIN/REGISTER here — those are handled entirely by Firebase
+  // (see AuthContext/useAuth), not this backend. LOGOUT is kept in case the
+  // backend needs to invalidate a server-side session/refresh token on
+  // sign-out; remove it too if that's not the case.
   LOGOUT: '/auth/logout',
-  PROFILE: '/user/profile',
+  PROFILE: '/users/me',
   UPDATE_PROFILE: '/user/profile/update',
+  CREATE_PROFILE: '/users',
+  SERVICES: '/moving-services',
+  INVENTORY_ITEMS: '/inventory-items',
 } as const;
 
 // Theme colors

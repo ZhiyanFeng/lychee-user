@@ -4,3 +4,5 @@ export { Card } from './Card';
 export { Container } from './container';
 export { Text } from './text';
 export { Layout } from './layout';
+export { AddressAutocompleteInput } from './AddressAutocompleteInput';
+export type { GooglePlaceSelection } from './AddressAutocompleteInput';

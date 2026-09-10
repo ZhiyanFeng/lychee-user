@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { API_BASE_URL } from '../constants';
+import { firebaseAuth } from '../config/firebase';
 
 class ApiService {
   private client: AxiosInstance;
@@ -20,11 +21,16 @@ class ApiService {
     // Request interceptor
     this.client.interceptors.request.use(
       async (config) => {
-        // Add auth token here if needed
-        // const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-        // if (token) {
-        //   config.headers.Authorization = `Bearer ${token}`;
-        // }
+        // Attach the current Firebase ID token so the backend can identify
+        // the caller — required for user-scoped endpoints (/user/profile).
+        // Firebase caches the token and only hits the network to refresh it
+        // when it's expired, so this is cheap on every request.
+        const currentUser = firebaseAuth.currentUser;
+        if (currentUser) {
+          const token = await currentUser.getIdToken();
+          config.headers = config.headers ?? {};
+          config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
       },
       (error) => {
