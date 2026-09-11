@@ -5,6 +5,13 @@ import servicesReducer from './slices/servicesSlice';
 import inventoryReducer from './slices/inventorySlice';
 import movingRequestReducer from './slices/movingRequestSlice';
 
+// Reactotron must be configured (src/config/reactotron.ts, imported from
+// index.ts) *before* this module runs, so its enhancer exists in time to be
+// passed into configureStore below. Dev-only — never included in prod
+// builds since __DEV__ is statically false there and Metro/Hermes strip the
+// unreachable branch.
+const reactotron = __DEV__ ? require('../config/reactotron').default : undefined;
+
 export const store = configureStore({
   reducer: {
     user: userReducer,
@@ -16,6 +23,10 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: false,
     }),
+  enhancers: (getDefaultEnhancers) =>
+    __DEV__ && reactotron?.createEnhancer
+      ? getDefaultEnhancers().concat(reactotron.createEnhancer())
+      : getDefaultEnhancers(),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

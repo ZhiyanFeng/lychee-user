@@ -45,26 +45,45 @@ const initialState: UserState = {
 type RawUser = Record<string, any>;
 
 function normalizeUser(raw: RawUser): User {
+  const data = raw?.data ?? raw;
   return {
-    id: String(raw.id ?? ''),
-    firebaseUid: raw.firebase_uid ?? raw.firebaseUid ?? '',
-    email: raw.email ?? '',
-    firstName: raw.first_name ?? raw.firstName ?? '',
-    lastName: raw.last_name ?? raw.lastName ?? '',
-    phoneNumber: raw.phone_number ?? raw.phoneNumber ?? '',
-    avatarUrl: raw.avatar_url ?? raw.avatarUrl ?? null,
-    ratingAvg: Number(raw.rating_avg ?? raw.ratingAvg ?? 5),
-    completedMoves: Number(raw.completed_moves ?? raw.completedMoves ?? 0),
-    canceledMoves: Number(raw.canceled_moves ?? raw.canceledMoves ?? 0),
+    id: String(data.id ?? ''),
+    firebaseUid: data.firebase_uid ?? data.firebaseUid ?? '',
+    email: data.email ?? '',
+    firstName: data.first_name ?? data.firstName ?? '',
+    lastName: data.last_name ?? data.lastName ?? '',
+    phoneNumber: data.phone_number ?? data.phoneNumber ?? '',
+    avatarUrl: data.avatar_url ?? data.avatarUrl ?? null,
+    ratingAvg: Number(data.rating_avg ?? data.ratingAvg ?? 5),
+    completedMoves: Number(data.completed_moves ?? data.completedMoves ?? 0),
+    canceledMoves: Number(data.canceled_moves ?? data.canceledMoves ?? 0),
   };
 }
+
+// Small helper for the retry-on-empty-id backoff below.
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const fetchUser = createAsyncThunk(
   'user/fetch',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await userService.getUser();
-      return normalizeUser(response as RawUser);
+      // Guard against a malformed/incomplete response where the row comes
+      // back with an empty `id` (e.g. backend still finishing a write, or a
+      // transient bad payload) — retry a few times with a short backoff
+      // rather than caching a broken user into state.
+      const maxAttempts = 3;
+      let normalized = normalizeUser((await userService.getUser()) as RawUser);
+
+      for (let attempt = 1; attempt < maxAttempts && !normalized.id; attempt++) {
+        await delay(300 * attempt);
+        normalized = normalizeUser((await userService.getUser()) as RawUser);
+      }
+
+      if (!normalized.id) {
+        throw new Error('User profile fetch returned an empty id after retrying');
+      }
+
+      return normalized;
     } catch (err: any) {
       // 404 = authenticated but no `users` row yet. Signal that distinctly
       // from network/server errors so the UI can offer "complete profile"
@@ -76,12 +95,17 @@ export const fetchUser = createAsyncThunk(
     }
   },
   {
-    // Skip the network call if we already have the user loaded, one is in
-    // flight, or we've already confirmed the row doesn't exist. Cleared back
-    // to initial on sign-out via `clearUser`, so a new sign-in re-fetches.
+    // Skip the network call only if we already have the user loaded or one
+    // is already in flight. Deliberately does NOT skip based on a stale
+    // `exists: false` from an earlier check — a profile may have since been
+    // created (e.g. via another device/session), so callers that need fresh
+    // data (like the edit screen, on every mount) must be able to re-check
+    // the backend rather than getting stuck on an outdated "not found".
+    // Cleared back to initial on sign-out via `clearUser`, so a new sign-in
+    // always re-fetches.
     condition: (_, { getState }) => {
       const { user } = getState() as { user: UserState };
-      return !user.loading && user.data === null && user.exists !== false;
+      return !user.loading && user.data === null;
     },
   }
 );
@@ -103,7 +127,18 @@ export const createUser = createAsyncThunk(
       email: input.email,
     };
     const response = await userService.createUser(payload);
-    return normalizeUser(response as RawUser);
+    const normalized = normalizeUser(response as RawUser);
+    // Prefer what we just submitted over the create response's echo for
+    // these fields — some backends return stubbed/incomplete data on
+    // create, which would otherwise silently overwrite what the user typed
+    // (e.g. showing a stale/mock name next time the edit screen prefills).
+    return {
+      ...normalized,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phoneNumber: input.phoneNumber,
+      email: input.email,
+    };
   }
 );
 
@@ -120,7 +155,16 @@ export const updateUser = createAsyncThunk(
       email: changes.email,
     };
     const response = await userService.updateUser(payload);
-    return normalizeUser(response as RawUser);
+    const normalized = normalizeUser(response as RawUser);
+    // Same rationale as createUser: trust the values we just submitted over
+    // a potentially stale/incomplete echo from the update response.
+    return {
+      ...normalized,
+      ...(changes.firstName !== undefined && { firstName: changes.firstName }),
+      ...(changes.lastName !== undefined && { lastName: changes.lastName }),
+      ...(changes.phoneNumber !== undefined && { phoneNumber: changes.phoneNumber }),
+      ...(changes.email !== undefined && { email: changes.email }),
+    };
   }
 );
 
