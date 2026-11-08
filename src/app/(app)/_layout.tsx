@@ -1,9 +1,10 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Text } from 'react-native';
 import { useColors } from '../../hooks/useColors';
 
 export default function AppLayout() {
   const colors = useColors();
+  const router = useRouter();
 
   return (
     <Tabs
@@ -24,6 +25,7 @@ export default function AppLayout() {
         name="index"
         options={{
           title: 'Home',
+            headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
         }}
       />
@@ -31,6 +33,7 @@ export default function AppLayout() {
         name="explore"
         options={{
           title: 'Explore',
+            headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
         }}
       />
@@ -38,6 +41,7 @@ export default function AppLayout() {
         name="bookings"
         options={{
           title: 'Bookings',
+            headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
         }}
       />
@@ -45,6 +49,7 @@ export default function AppLayout() {
         name="profile"
         options={{
           title: 'Profile',
+            headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />

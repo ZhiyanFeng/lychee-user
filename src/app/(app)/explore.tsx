@@ -6,8 +6,9 @@ import { Container, Text, Layout } from '../../components/ui';
 import { useColors } from '../../hooks/useColors';
 import { spacing } from '../../../themes';
 import { useAppDispatch, useAppSelector } from '../../store';
-import { fetchServices, selectServices } from '../../store/slices/servicesSlice';
-import { resetMovingRequest } from '../../store/slices/movingRequestSlice';
+import { fetchServices, selectServices, MovingService } from '../../store/slices/servicesSlice';
+import { fetchPropertyTypes } from '../../store/slices/propertyTypesSlice';
+import { resetMovingRequest, setServiceId } from '../../store/slices/movingRequestSlice';
 
 // Local icon lookup keyed by `moving_services.code`, since the backend row
 // has no icon column.
@@ -34,13 +35,21 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     dispatch(fetchServices());
+    // Pre-warms property types so they're already loaded by the time the
+    // user reaches the moving-request wizard (thunk's `condition` guard
+    // makes this a no-op if already fetched/in flight).
+    dispatch(fetchPropertyTypes());
   }, [dispatch]);
 
-  const handleServicePress = (code: string) => {
-    const route = SERVICE_ROUTES[code];
+  const handleServicePress = (service: MovingService) => {
+    const route = SERVICE_ROUTES[service.code];
     if (!route) return;
-    // Start the wizard fresh each time it's entered from Explore.
+    // Start the wizard fresh each time it's entered from Explore, then
+    // record which service the user picked so movingRequestSlice already
+    // has it by the time they reach the moving-request screen. The
+    // backend's createRfq contract expects a numeric serviceId.
     dispatch(resetMovingRequest());
+    dispatch(setServiceId(Number(service.id)));
     router.push(route as any);
   };
 
@@ -92,7 +101,7 @@ export default function ExploreScreen() {
                 key={service.id}
                 style={[styles.serviceCard, { borderColor: colors.border }]}
                 {...(isPressable
-                  ? { onPress: () => handleServicePress(service.code), activeOpacity: 0.7 }
+                  ? { onPress: () => handleServicePress(service), activeOpacity: 0.7 }
                   : {})}
               >
                 {renderIcon(service.code)}

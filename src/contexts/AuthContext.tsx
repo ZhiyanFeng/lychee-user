@@ -53,6 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
+      console.log('[GoogleSignIn] starting credential manager sign-in...');
       const credential = (await credentialManagerSignIn(['google-signin'], {
         googleSignIn: {
           serverClientId: GOOGLE_WEB_CLIENT_ID,
@@ -60,14 +61,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           filterByAuthorizedAccounts: false, // show all Google accounts, not just previously-used ones
         },
       })) as GoogleCredential;
+      console.log('[GoogleSignIn] credential manager returned:', JSON.stringify(credential));
 
       if (!credential?.idToken) {
         throw new Error('No ID token returned from Google Sign-In');
       }
 
       const googleCredential = GoogleAuthProvider.credential(credential.idToken);
-      await firebaseAuth.signInWithCredential(googleCredential);
+      console.log('[GoogleSignIn] exchanging idToken with Firebase...');
+      const userCredential = await firebaseAuth.signInWithCredential(googleCredential);
+      console.log('[GoogleSignIn] Firebase sign-in succeeded, uid:', userCredential.user.uid);
+
+      const token = await userCredential.user.getIdToken();
+      console.log("--- COPY THIS FOR POSTMAN ---");
+      console.log(token);
+      console.log("-----------------------------");
     } catch (error: any) {
+      // Log the full error (code + native detail), not just .message — Android
+      // exceptions (NoCredentialException, ApiException, etc.) and Firebase
+      // Auth errors both carry a diagnostic `.code` that's far more useful
+      // than the message string alone when narrowing down where this failed
+      // (Credential Manager picker vs. Firebase token exchange).
+      console.log('[GoogleSignIn] ERROR code:', error?.code, 'message:', error?.message);
+      console.log(
+        '[GoogleSignIn] full error:',
+        JSON.stringify(error, Object.getOwnPropertyNames(error))
+      );
       throw new Error(error.message || 'Failed to sign in with Google');
     }
   };

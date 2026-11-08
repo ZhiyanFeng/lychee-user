@@ -57,6 +57,19 @@ export const API_ENDPOINTS = {
   CREATE_PROFILE: '/users',
   SERVICES: '/moving-services',
   INVENTORY_ITEMS: '/inventory-items',
+  // Maps to the `rfqs` table: user_id is derived server-side from the
+  // Firebase ID token (never sent by the client); status_id defaults to the
+  // initial rfq_statuses row server-side too — the client never sets it.
+  RFQS: '/rfqs',
+  PROPERTY_TYPES: '/property-types',
+  // Open (in-progress/unconfirmed) requests for a given backend user — an
+  // RFQ that's been submitted but hasn't been completed/canceled yet
+  // (`status: "OPEN"`). userId is the backend `users.id` (NOT the Firebase
+  // uid) — see userSlice's `User.id`.
+  OPEN_REQUESTS: (userId: string | number) => `/rfqs/user/${userId}/open`,
+  // All bids (quotes) submitted by movers against a given RFQ —
+  // `@GetMapping("/rfq/{rfqId}")` on the backend's bid controller.
+  BIDS_FOR_RFQ: (rfqId: string) => `bids/rfq/${rfqId}`,
 } as const;
 
 // Theme colors

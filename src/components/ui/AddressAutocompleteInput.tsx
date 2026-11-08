@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Text as RNText,
   TextInput,
-  FlatList,
+  ScrollView,
   Pressable,
   ActivityIndicator,
 } from 'react-native';
@@ -202,12 +202,21 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
             { backgroundColor: colors.background, borderColor: colors.border },
           ]}
         >
-          <FlatList
-            data={predictions}
-            keyExtractor={(item) => item.placeID}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
+          {/*
+            Plain ScrollView + .map() instead of FlatList: this dropdown is
+            rendered inside the wizard's outer (vertical) ScrollView
+            (moving-request/index.tsx), and nesting a VirtualizedList-backed
+            component (FlatList/SectionList) inside a plain ScrollView with
+            the same scroll orientation breaks windowing/other functionality
+            (React Native's own "VirtualizedLists should never be nested..."
+            warning). Google Places predictions are capped at a small,
+            bounded count (~5), so virtualization buys nothing here anyway —
+            a plain scrollable list is both correct and simpler.
+          */}
+          <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+            {predictions.map((item) => (
               <Pressable
+                key={item.placeID}
                 style={[styles.row, { borderBottomColor: colors.border }]}
                 onPress={() => handleSelectPrediction(item)}
               >
@@ -220,8 +229,8 @@ export const AddressAutocompleteInput: React.FC<AddressAutocompleteInputProps> =
                   </RNText>
                 ) : null}
               </Pressable>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       )}
       {apiError && (

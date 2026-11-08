@@ -1,0 +1,2 @@
+export { EmptyBookingsView } from './EmptyBookingsView';
+

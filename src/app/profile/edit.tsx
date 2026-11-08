@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Container, Button, Input, Layout, Text } from '../../components/ui';
+import { Container, Button, Input, Layout, Text, PhoneNumberInput } from '../../components/ui';
 import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../hooks';
 import { spacing } from '../../../themes';
-import { formatE164Input, isValidE164Phone, toE164 } from '../../utils/helpers';
+import { isValidE164Phone, toE164 } from '../../utils/helpers';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
   createUser,
@@ -56,7 +56,11 @@ export default function EditProfileScreen() {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  // Held as a fully qualified E.164 string (e.g. "+14155552671", possibly
+  // incomplete mid-typing, e.g. "+1415") — `PhoneNumberInput` reports changes
+  // in exactly this shape already, so no further formatting is needed here.
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneComplete, setPhoneComplete] = useState(false);
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -74,11 +78,13 @@ export default function EditProfileScreen() {
     if (exists === true && backendUser) {
       setFirstName(backendUser.firstName);
       setLastName(backendUser.lastName);
-      setPhoneNumber(formatE164Input(backendUser.phoneNumber));
+      setPhoneNumber(backendUser.phoneNumber ?? '');
+      setPhoneComplete(isValidE164Phone(backendUser.phoneNumber ?? ''));
     } else if (exists === false) {
       setFirstName(googleName.first);
       setLastName(googleName.last);
       setPhoneNumber('');
+      setPhoneComplete(false);
     }
   }, [exists, backendUser, googleName.first, googleName.last]);
 
@@ -87,8 +93,8 @@ export default function EditProfileScreen() {
   const validate = (): string | null => {
     if (!firstName.trim()) return 'First name is required';
     if (!lastName.trim()) return 'Last name is required';
-    if (!isValidE164Phone(phoneNumber)) {
-      return 'Please enter a valid phone number, including country code (e.g. +14155552671)';
+    if (!phoneComplete || !isValidE164Phone(phoneNumber)) {
+      return 'Please enter a complete 10-digit phone number';
     }
     if (!email) return 'No email found on your account';
     return null;
@@ -193,18 +199,14 @@ export default function EditProfileScreen() {
                 selectTextOnFocus={false}
                 style={styles.readOnlyInput}
               />
-              <Input
+              <PhoneNumberInput
                 label="Phone Number"
-                placeholder="+14155552671"
                 value={phoneNumber}
-                onChangeText={(text) => setPhoneNumber(formatE164Input(text))}
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                textContentType="telephoneNumber"
+                onChangeText={(e164, complete) => {
+                  setPhoneNumber(e164);
+                  setPhoneComplete(complete);
+                }}
               />
-              <Text variant="caption" style={{ color: colors.text, opacity: 0.6 }}>
-                Include your country code, e.g. +1 for the US/Canada (E.164 format).
-              </Text>
             </View>
 
             <Button

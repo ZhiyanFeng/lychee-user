@@ -2,8 +2,10 @@ import { configureStore } from '@reduxjs/toolkit';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import userReducer from './slices/userSlice';
 import servicesReducer from './slices/servicesSlice';
-import inventoryReducer from './slices/inventorySlice';
 import movingRequestReducer from './slices/movingRequestSlice';
+import propertyTypesReducer from './slices/propertyTypesSlice';
+import openRequestReducer from './slices/openRequestSlice';
+import bidReducer from './slices/bidSlice';
 
 // Reactotron must be configured (src/config/reactotron.ts, imported from
 // index.ts) *before* this module runs, so its enhancer exists in time to be
@@ -16,8 +18,10 @@ export const store = configureStore({
   reducer: {
     user: userReducer,
     services: servicesReducer,
-    inventory: inventoryReducer,
     movingRequest: movingRequestReducer,
+    propertyTypes: propertyTypesReducer,
+    openRequest: openRequestReducer,
+    bid: bidReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

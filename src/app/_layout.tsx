@@ -2,23 +2,23 @@ import { useEffect } from 'react';
 import { Slot } from 'expo-router';
 import { Provider } from 'react-redux';
 import GooglePlacesSDK from 'react-native-google-places-sdk';
-import { store, useAppDispatch } from '../store';
+import { Inspector, InspectorDevMenu } from 'react-native-dev-inspector';
+import { store, useAppDispatch, useAppSelector } from '../store';
 import { AuthProvider, useAuth } from '../contexts';
 import { GOOGLE_PLACES_API_KEY } from '../constants';
 import { fetchServices } from '../store/slices/servicesSlice';
-import { fetchInventoryItems } from '../store/slices/inventorySlice';
-import { fetchUser, clearUser } from '../store/slices/userSlice';
+import { fetchUser, clearUser, selectUser } from '../store/slices/userSlice';
+import { fetchOpenRequests, clearOpenRequests } from '../store/slices/openRequestSlice';
 
 /**
  * Prefetches small, global, rarely-changing "lookup"/reference data (moving
- * services, inventory items/categories) once at app start, so it's already
- * warm in the Redux store by the time the user reaches Explore or the
- * moving-request wizard — instead of each screen showing its own loading
- * spinner on first visit.
+ * services) once at app start, so it's already warm in the Redux store by
+ * the time the user reaches Explore or the moving-request wizard — instead
+ * of each screen showing its own loading spinner on first visit.
  *
- * Safe to also dispatch these same thunks from individual screens (Explore,
+ * Safe to also dispatch this same thunk from individual screens (Explore,
  * moving-request/*) as defensive fallbacks (e.g. deep-linking directly into
- * a step) — the `condition` option on each thunk makes redundant dispatches
+ * a step) — the `condition` option on the thunk makes redundant dispatches
  * a no-op rather than firing a duplicate network request.
  *
  * Rendered as its own child component (not inline in RootLayout) because
@@ -28,13 +28,12 @@ function LookupDataPrefetcher() {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    // Both endpoints are unauthenticated today (api.service.ts's request
+    // This endpoint is unauthenticated today (api.service.ts's request
     // interceptor doesn't attach a token yet), so it's safe to prefetch
-    // immediately at app start rather than waiting for sign-in. If these
-    // endpoints later require auth, gate this on the authenticated user from
-    // useAuth() instead.
+    // immediately at app start rather than waiting for sign-in. If it later
+    // requires auth, gate this on the authenticated user from useAuth()
+    // instead.
     dispatch(fetchServices());
-    dispatch(fetchInventoryItems());
   }, [dispatch]);
 
   return null;
@@ -65,6 +64,29 @@ function UserSync() {
   return null;
 }
 
+/**
+ * Fetches the signed-in user's open (in-progress) request(s) from
+ * `/user/{userId}/open` once the backend `users` row is available — gated
+ * on `backendUser.id` (not just Firebase's `user`) since the endpoint needs
+ * the backend's UUID, which only exists after `UserSync`'s `fetchUser`
+ * resolves. Cleared on sign-out for the same stale-data reason as `UserSync`.
+ */
+function OpenRequestSync() {
+  const dispatch = useAppDispatch();
+  const { user } = useAuth();
+  const backendUser = useAppSelector(selectUser);
+
+  useEffect(() => {
+    if (user && backendUser?.id) {
+      dispatch(fetchOpenRequests(backendUser.id));
+    } else if (!user) {
+      dispatch(clearOpenRequests());
+    }
+  }, [dispatch, user, backendUser?.id]);
+
+  return null;
+}
+
 export default function RootLayout() {
   useEffect(() => {
     // Must be initialized exactly once before any fetchPredictions/
@@ -80,7 +102,19 @@ export default function RootLayout() {
       <AuthProvider>
         <LookupDataPrefetcher />
         <UserSync />
-        <Slot />
+        <OpenRequestSync />
+        {__DEV__ ? (
+          // Tap any on-screen component to jump straight to its source file
+          // in WebStorm (configured in metro.config.js). InspectorDevMenu
+          // adds a toggle to the in-app dev menu to turn tap-to-inspect on/off.
+          // Both are dev-only — stripped entirely from production bundles.
+          <Inspector>
+            <Slot />
+            <InspectorDevMenu />
+          </Inspector>
+        ) : (
+          <Slot />
+        )}
       </AuthProvider>
     </Provider>
   );

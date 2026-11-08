@@ -1,106 +1,90 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Container,Text, Button, Layout } from '../../components/ui';
-import { useColors } from '../../hooks/useColors';
-import { spacing } from '../../../themes';
+import React, { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { EmptyBookingsView } from '../../components/bookings';
+import { ActiveRequestBiddingFeed, Bid } from '../../components/bidding';
+import { useAppDispatch, useAppSelector } from '../../store';
+import {
+  selectActiveOpenRequest,
+  selectOpenRequestsLoading,
+} from '../../store/slices/openRequestSlice';
+import {
+  fetchBidsForRfq,
+  selectBidsForRfq,
+  selectBidsLoading,
+  selectBidsError,
+  markBidAcceptedLocally,
+  removeBidLocally,
+} from '../../store/slices/bidSlice';
 
+/**
+ * Bookings tab root: dynamically renders one of two states depending on
+ * whether the customer currently has an active moving request out for
+ * bids, instead of hardcoding a single static layout:
+ *   - no active request -> `<EmptyBookingsView />`
+ *     ("No Bookings Yet" + create-a-booking entry points).
+ *   - an active request exists -> `<ActiveRequestBiddingFeed />`
+ *     (live auction banner, route/date/specialty-item summary card, and
+ *     the scrollable Accept/Decline quote feed).
+ *
+ * Both the active request (`openRequestSlice`, kept warm by `OpenRequestSync`
+ * in app/_layout.tsx) and its bids (`bidSlice`, fetched here on demand) come
+ * entirely from Redux — no local mock/simulated data.
+ */
 export default function BookingsScreen() {
-  const colors = useColors();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  const activeRequest = useAppSelector(selectActiveOpenRequest);
+  const openRequestsLoading = useAppSelector(selectOpenRequestsLoading);
+  const bids = useAppSelector(selectBidsForRfq(activeRequest?.id));
+  const bidsLoading = useAppSelector(selectBidsLoading);
+  const bidsError = useAppSelector(selectBidsError);
+
+  useEffect(() => {
+    if (activeRequest?.id) {
+      dispatch(fetchBidsForRfq(activeRequest.id));
+    }
+  }, [dispatch, activeRequest?.id]);
+
+  const handleCreateBooking = () => {
+    router.push('/moving-request');
+  };
+
+  const handleAcceptBid = (bid: Bid) => {
+    if (!activeRequest) return;
+    dispatch(markBidAcceptedLocally({ rfqId: activeRequest.id, bidId: bid.id }));
+  };
+
+  const handleDeclineBid = (bid: Bid) => {
+    if (!activeRequest) return;
+    dispatch(removeBidLocally({ rfqId: activeRequest.id, bidId: bid.id }));
+  };
+
+  // Still resolving whether an open request exists — render nothing (or a
+  // spinner) rather than flashing the empty state first.
+  if (openRequestsLoading && !activeRequest) {
+    return null;
+  }
+
+  if (!activeRequest) {
+    return <EmptyBookingsView onCreateBooking={handleCreateBooking} />;
+  }
 
   return (
-    <Container>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Layout spacing={spacing.lg}>
-          <View style={styles.header}>
-            <Text variant="title">My Bookings</Text>
-            <Button
-              title="+ New Booking"
-              onPress={() => {}}
-              style={styles.newBookingButton}
-            />
-          </View>
-
-          {/* Empty State */}
-          <View style={[styles.emptyState, { borderColor: colors.border }]}>
-            <Text style={styles.emptyIcon}>📅</Text>
-            <Text variant="body" style={styles.emptyTitle}>No Bookings Yet</Text>
-            <Text variant="caption" style={[styles.emptyDescription, { color: colors.text }]}>
-              Your scheduled moves will appear here
-            </Text>
-            <Button
-              title="Create Your First Booking"
-              onPress={() => {}}
-              style={styles.emptyButton}
-            />
-          </View>
-
-          {/* Upcoming Section */}
-          <View style={styles.section}>
-            <Text variant="body" style={styles.sectionTitle}>Upcoming</Text>
-            <Text variant="caption" style={{ color: colors.text, opacity: 0.7 }}>
-              No upcoming bookings
-            </Text>
-          </View>
-
-          {/* Past Section */}
-          <View style={styles.section}>
-            <Text variant="body" style={styles.sectionTitle}>Past</Text>
-            <Text variant="caption" style={{ color: colors.text, opacity: 0.7 }}>
-              No past bookings
-            </Text>
-          </View>
-        </Layout>
-      </ScrollView>
-    </Container>
+    <ActiveRequestBiddingFeed
+      request={{
+        fromAddress: activeRequest.originAddress.formattedAddress,
+        toAddress: activeRequest.destinationAddress.formattedAddress,
+        moveDate: activeRequest.moveDate,
+        specialtyItemLabel: activeRequest.specialtyItems[0]
+          ? `${activeRequest.specialtyItems[0].quantity}x ${activeRequest.specialtyItems[0].itemName}`
+          : undefined,
+      }}
+      bids={bids}
+      loading={bidsLoading}
+      error={bidsError}
+      onAcceptBid={handleAcceptBid}
+      onDeclineBid={handleDeclineBid}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: spacing.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  newBookingButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  emptyState: {
-    padding: spacing.xl,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginVertical: spacing.lg,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontWeight: '600',
-    fontSize: 18,
-  },
-  emptyDescription: {
-    textAlign: 'center',
-    opacity: 0.7,
-  },
-  emptyButton: {
-    marginTop: spacing.md,
-  },
-  section: {
-    marginTop: spacing.xl,
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-});

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Container, Text, Layout } from '../../components/ui';
 import { useColors } from '../../hooks/useColors';
@@ -29,16 +29,35 @@ export default function ProfileScreen() {
   const displayEmail = backendUser?.email || user?.email || '';
   const needsProfile = userExists === false;
 
-  const handleLogout = async () => {
+  const handleSignOut = async () => {
     setLoading(true);
     try {
+      // `signOut()` from useAuth() wraps the Firebase `auth().signOut()` call
+      // (see src/contexts/AuthContext.tsx) — invalidates the active JWT
+      // session so subsequent API requests no longer attach a valid token.
       await signOut();
+      // `.replace` (not `.push`) so the auth screen replaces this one in the
+      // stack — users can't hit the hardware/gesture back button and land
+      // back on an authenticated screen after signing out.
       router.replace('/(auth)/login');
     } catch (error: any) {
-      console.warn('Failed to sign out:', error?.message ?? error);
+      console.error('[Profile] Sign-out failed:', error);
+      Alert.alert('Sign Out Failed', 'Something went wrong while signing you out. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const confirmSignOut = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log Out', style: 'destructive', onPress: handleSignOut },
+      ],
+      { cancelable: true }
+    );
   };
 
 
@@ -141,13 +160,14 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {/* Logout Button */}
+          {/* Sign Out Button */}
           <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={handleLogout}
+            style={styles.signOutButton}
+            onPress={confirmSignOut}
             disabled={loading}
+            activeOpacity={0.7}
           >
-            <Text variant="body" style={styles.logoutText}>
+            <Text variant="body" style={styles.signOutText}>
               {loading ? 'Signing Out...' : 'Log Out'}
             </Text>
           </TouchableOpacity>
@@ -211,13 +231,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xl,
   },
-  logoutButton: {
+  signOutButton: {
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: spacing.md,
     marginTop: spacing.xl,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#dc3545',
+    borderRadius: 10,
   },
-  logoutText: {
-    color: '#FF3B30',
+  signOutText: {
+    color: '#dc3545',
     fontWeight: '600',
+    textAlign: 'center',
   },
 });
