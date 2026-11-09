@@ -14,8 +14,8 @@ interface EmptyBookingsViewProps {
  * "No active request" state for the Bookings tab: a dashed-border calendar
  * placeholder card plus a couple of entry points into starting a new
  * booking. Rendered by `bookings.tsx` whenever `activeRequest` is
- * null/undefined (see `BiddingFeedView` for the opposite state, once a
- * request is out for bids).
+ * null/undefined (see `ActiveRequestBiddingFeed` for the opposite state,
+ * once a request is out for bids).
  */
 export function EmptyBookingsView({ onCreateBooking }: EmptyBookingsViewProps) {
   const colors = useColors();

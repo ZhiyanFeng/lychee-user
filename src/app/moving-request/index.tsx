@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookingFlow } from '../../components/booking';
+import { BookingFlow } from '../../components/booking-wizard';
 
 /**
  * Route entry for the moving-request wizard — kept thin per expo-router

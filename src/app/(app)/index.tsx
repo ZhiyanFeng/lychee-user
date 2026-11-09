@@ -1,13 +1,21 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Container,Text,Button, Layout } from '../../components/ui';
+import { Container, Text, Layout } from '../../components/ui';
 import { useColors } from '../../hooks/useColors';
 import { spacing } from '../../../themes';
+import { RecentActivityCard } from '../../components/bookings';
 
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
+
+  // Sends the user to pick a service on Explore first, rather than
+  // straight into the wizard — Explore's own service-tile handler resets
+  // the draft and starts the wizard at Step 1 (see `explore.tsx`).
+  const handleNewBooking = () => {
+    router.push('/(app)/explore');
+  };
 
   return (
     <Container>
@@ -30,13 +38,17 @@ export default function HomeScreen() {
             </Text>
 
             <View style={styles.actionGrid}>
-              <View style={[styles.actionCard, { backgroundColor: colors.primary + '20' }]}>
+              <TouchableOpacity
+                style={[styles.actionCard, { backgroundColor: colors.primary + '20' }]}
+                onPress={handleNewBooking}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.actionIcon}>📦</Text>
                 <Text variant="body" style={styles.actionTitle}>New Booking</Text>
                 <Text variant="caption" style={styles.actionDescription}>
                   Schedule a move
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               <View style={[styles.actionCard, { backgroundColor: colors.primary + '20' }]}>
                 <Text style={styles.actionIcon}>🚚</Text>
@@ -69,16 +81,7 @@ export default function HomeScreen() {
             <Text variant="title" style={styles.sectionTitle}>
               Recent Activity
             </Text>
-            <View style={[styles.emptyState, { borderColor: colors.border }]}>
-              <Text variant="body" style={{ color: colors.text }}>
-                No recent activity
-              </Text>
-              <Button
-                title="Book Your First Move"
-                onPress={() => router.push('/(app)/bookings')}
-                style={styles.emptyStateButton}
-              />
-            </View>
+            <RecentActivityCard />
           </View>
         </Layout>
       </ScrollView>
@@ -95,7 +98,8 @@ const styles = StyleSheet.create({
   },
   welcomeSection: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   welcomeTitle: {
     marginBottom: spacing.sm,
@@ -104,7 +108,11 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   section: {
-    marginTop: spacing.lg,
+    // No marginTop here — `Layout`'s `gap` prop already spaces every
+    // top-level section consistently; adding a margin here too previously
+    // doubled up the gap specifically before "Quick Actions" (on top of
+    // `welcomeSection`'s own bottom padding), making that gap noticeably
+    // larger/less even than the rest of the screen.
   },
   sectionTitle: {
     marginBottom: spacing.md,
@@ -132,16 +140,5 @@ const styles = StyleSheet.create({
   actionDescription: {
     opacity: 0.7,
     textAlign: 'center',
-  },
-  emptyState: {
-    padding: spacing.xl,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  emptyStateButton: {
-    marginTop: spacing.md,
   },
 });
