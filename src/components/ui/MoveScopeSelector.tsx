@@ -11,11 +11,11 @@ import { useTheme } from '../../hooks';
 import { SPACING, FONT_SIZES } from '../../constants';
 
 /**
- * Minimal shape this component needs from a property type — matches (but
- * doesn't require the full) `PropertyType` from `propertyTypesSlice`, so
+ * Minimal shape this component needs from a move scope — matches (but
+ * doesn't require the full) `MoveScope` from `moveScopesSlice`, so
  * callers can pass those objects straight through.
  */
-export interface PropertyTypeOption {
+export interface MoveScopeOption {
   id: number;
   slug?: string;
   displayName: string;
@@ -30,26 +30,34 @@ export interface PropertyTypeOption {
   isBasement?: boolean;
 }
 
-interface PropertyTypeSelectorProps {
+interface MoveScopeSelectorProps {
   /** Label rendered above the trigger, mirroring Input's own label. */
   label?: string;
   /** Distinct, ordered category names — drive the tabs at the top of the sheet. */
   categories: string[];
   /** Full flat list of selectable types across all categories; filtered by the active tab. */
-  options: PropertyTypeOption[];
-  value: PropertyTypeOption | null;
+  options: MoveScopeOption[];
+  value: MoveScopeOption | null;
   /** Invoked with the tapped option once the user picks a pill; the sheet closes right after. */
-  onSelectPropertyType: (option: PropertyTypeOption) => void;
+  onSelectMoveScope: (option: MoveScopeOption) => void;
   placeholder?: string;
+  /**
+   * Renders the trigger as a plain, non-pressable summary (muted
+   * background, no chevron, no modal) instead of an interactive dropdown —
+   * for contexts where the move scope was already locked in by an earlier
+   * step (e.g. Small Moving's "What Are You Moving?") and shouldn't be
+   * re-editable later in the flow.
+   */
+  readOnly?: boolean;
 }
 
 /**
- * Formats a property type as "<Category> — <Type>[ Basement]", e.g.
+ * Formats a move scope as "<Category> — <Type>[ Basement]", e.g.
  * "House — 2 Bed" or "House — 2 Bed Basement" for a `2-bed-basement` option.
  * Shared by this component's own trigger summary text and anywhere else
  * (e.g. the booking wizard's review step) that needs the same label.
  */
-export function formatPropertyTypeLabel(option: PropertyTypeOption | null | undefined): string {
+export function formatMoveScopeLabel(option: MoveScopeOption | null | undefined): string {
   if (!option) return '';
   return `${option.category} — ${option.displayName}${option.isBasement ? ' Basement' : ''}`;
 }
@@ -57,7 +65,7 @@ export function formatPropertyTypeLabel(option: PropertyTypeOption | null | unde
 
 /**
  * Single summary trigger ("Apartment — 2 Bedroom" / placeholder) that opens a
- * bottom-sheet-style modal for picking a property type:
+ * bottom-sheet-style modal for picking a move scope:
  *
  *   ┌──────────────────────────────────────────┐
  *   │ Select Property Details               ✕ │
@@ -75,19 +83,20 @@ export function formatPropertyTypeLabel(option: PropertyTypeOption | null | unde
  * then grouped by `sectionName` (falling back to the category itself when a
  * type has no section) so e.g. a house's "Full House" vs "Basement Suite"
  * options render under their own headings rather than one flat pill grid.
- * Selecting a pill invokes `onSelectPropertyType` and closes the sheet.
+ * Selecting a pill invokes `onSelectMoveScope` and closes the sheet.
  *
  * Built on the built-in `Modal` (transparent + slide-up) rather than a
  * dedicated bottom-sheet library, since none is installed in this project
  * and this UI doesn't need drag-to-dismiss/snap-point behavior.
  */
-export const PropertyTypeSelector: React.FC<PropertyTypeSelectorProps> = ({
+export const MoveScopeSelector: React.FC<MoveScopeSelectorProps> = ({
   label,
   categories,
   options,
   value,
-  onSelectPropertyType,
-  placeholder = 'Select a property type',
+  onSelectMoveScope,
+  placeholder = 'Select a move scope',
+  readOnly = false,
 }) => {
   const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
@@ -101,7 +110,7 @@ export const PropertyTypeSelector: React.FC<PropertyTypeSelectorProps> = ({
   const sections = useMemo(() => {
     const inCategory = options.filter((option) => option.category === activeCategory);
     const order: string[] = [];
-    const bySection = new Map<string, PropertyTypeOption[]>();
+    const bySection = new Map<string, MoveScopeOption[]>();
     inCategory.forEach((option) => {
       const key = option.sectionName || option.category;
       if (!bySection.has(key)) {
@@ -113,15 +122,15 @@ export const PropertyTypeSelector: React.FC<PropertyTypeSelectorProps> = ({
     return order.map((sectionName) => ({ sectionName, options: bySection.get(sectionName)! }));
   }, [options, activeCategory]);
 
-  const summaryText = value ? formatPropertyTypeLabel(value) : placeholder;
+  const summaryText = value ? formatMoveScopeLabel(value) : placeholder;
 
   const handleOpen = () => {
     setActiveCategory(value?.category ?? categories[0] ?? null);
     setVisible(true);
   };
   const handleClose = () => setVisible(false);
-  const handleSelect = (option: PropertyTypeOption) => {
-    onSelectPropertyType(option);
+  const handleSelect = (option: MoveScopeOption) => {
+    onSelectMoveScope(option);
     setVisible(false);
   };
 
@@ -129,8 +138,13 @@ export const PropertyTypeSelector: React.FC<PropertyTypeSelectorProps> = ({
     <View style={styles.container}>
       {label && <Text style={[styles.label, { color: colors.text }]}>{label}</Text>}
       <Pressable
-        onPress={handleOpen}
-        style={[styles.trigger, { borderColor: colors.border, backgroundColor: colors.background }]}
+        onPress={readOnly ? undefined : handleOpen}
+        disabled={readOnly}
+        style={[
+          styles.trigger,
+          { borderColor: colors.border, backgroundColor: colors.background },
+          readOnly && { backgroundColor: colors.border + '26' },
+        ]}
       >
         <Text
           style={[styles.triggerText, { color: value ? colors.text : colors.border }]}
@@ -138,10 +152,10 @@ export const PropertyTypeSelector: React.FC<PropertyTypeSelectorProps> = ({
         >
           {summaryText}
         </Text>
-        <Text style={{ color: colors.text }}>▼</Text>
+        {!readOnly && <Text style={{ color: colors.text }}>▼</Text>}
       </Pressable>
 
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <Modal visible={visible && !readOnly} transparent animationType="slide" onRequestClose={handleClose}>
         <View style={styles.modalContainer}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
           <View style={[styles.sheet, { backgroundColor: colors.background }]}>
@@ -185,7 +199,7 @@ export const PropertyTypeSelector: React.FC<PropertyTypeSelectorProps> = ({
             <ScrollView contentContainerStyle={styles.sectionsContainer}>
               {sections.length === 0 ? (
                 <Text style={{ color: colors.text, opacity: 0.6 }}>
-                  No property types in this category yet.
+                  No move scopes in this category yet.
                 </Text>
               ) : (
                 sections.map((section) => (

@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Container, Layout, Button, Text, formatPropertyTypeLabel } from '../ui';
-import type { GooglePlaceSelection, PropertyTypeOption } from '../ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Container, Layout, Button, Text, formatMoveScopeLabel } from '../ui';
+import type { GooglePlaceSelection, MoveScopeOption } from '../ui';
+import { useColors } from '../../hooks/useColors';
 import { BookingHeader } from './BookingHeader';
 import { Step1Locations } from './Step1Locations';
 import { Step2Schedule } from './Step2Schedule';
@@ -11,38 +13,43 @@ import { spacing } from '../../../themes';
 import { isFutureDate } from '../../utils/date';
 import { useAppDispatch, useAppSelector } from '../../store';
 import {
-  fetchPropertyTypes,
-  selectPropertyTypes,
-  selectPropertyTypeCategories,
-  selectPropertyTypeById,
-} from '../../store/slices/propertyTypesSlice';
+  fetchMoveScopes,
+  selectMoveScopes,
+  selectMoveScopeCategories,
+  selectMoveScopeById,
+} from '../../store/slices/moveScopesSlice';
 import { fetchUser, selectUserExists } from '../../store/slices/userSlice';
 import {
   AddressDetails,
   ParkingType,
   SpecialtyItem,
   setAddress,
-  setPropertyTypeId,
-  setDestinationPropertyTypeId,
+  setMoveScopeId,
+  setDestinationMoveScopeId,
   setWizardStep,
   setMoveDate,
   setTimeWindow,
   setDescription,
   setSpecialtyItems,
+  setIsFlexibleDate,
+  toggleAdditionalService,
   resetMovingRequest,
   submitMovingRequest,
   selectFromAddress,
   selectToAddress,
-  selectPropertyTypeId,
-  selectDestinationPropertyTypeId,
+  selectMoveScopeId,
+  selectDestinationMoveScopeId,
   selectWizardStep,
   selectMoveDate,
   selectTimeWindow,
   selectDescription,
   selectSpecialtyItems,
+  selectIsFlexibleDate,
+  selectAdditionalServices,
   selectSubmitting,
   selectSubmitError,
 } from '../../store/slices/movingRequestSlice';
+import type { AdditionalServiceType } from '../../types';
 
 // rfqs.move_date is a DATE column — validate the plain 'YYYY-MM-DD' shape
 // client-side before ever sending it (the DatePickerModal only ever
@@ -52,9 +59,15 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TOTAL_STEPS = 3;
 type Slot = 'from' | 'to';
 
+// The backend's "Small Move" category is only ever picked via the
+// dedicated Small Moving wizard (its own Step 1 "What Are You Moving?"),
+// so it's excluded here — Residential customers should only ever see
+// House/Apartment/Townhouse/Storage property types in this picker.
+const SMALL_MOVE_CATEGORY = 'Small Move';
+
 const STEP_TITLES: Record<number, string> = {
   1: 'Pickup & Route',
-  2: 'Destination & Schedule',
+  2: 'Schedule & Details',
   3: 'Review & Submit',
 };
 
@@ -74,10 +87,10 @@ function animateNextLayout() {
 /**
  * Parent form-state manager for the 3-step hourly-billing/bidding booking
  * wizard:
- *   1. Locations & Pickup Scope — pickup address, pickup property type
+ *   1. Locations & Pickup Scope — pickup address, pickup move scope
  *      (bottom-sheet picker), progressive pickup access details, and the
  *      destination address.
- *   2. Delivery Scope & Schedule — destination property type, progressive
+ *   2. Delivery Scope & Schedule — destination move scope, progressive
  *      destination access details (identical Dynamic Conditional Swap rules
  *      as step 1, via the shared `<AccessDetailsFields />`), the move date
  *      (calendar sheet), delivery time window, and heavy/special item notes.
@@ -86,7 +99,7 @@ function animateNextLayout() {
  *
  * All step components are purely presentational — every field lives in
  * this component's state so nothing is lost moving back and forth between
- * steps, and is only pushed into Redux right before submit. Property-type
+ * steps, and is only pushed into Redux right before submit. Move-scope
  * selection and Elevator toggles call `animateNextLayout()` right before the
  * state update that reveals/hides the dependent Stairs/Access-Details
  * fields, so those transitions animate in smoothly instead of popping.
@@ -94,21 +107,35 @@ function animateNextLayout() {
 export function BookingFlow() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
 
   const savedFromAddress = useAppSelector(selectFromAddress);
   const savedToAddress = useAppSelector(selectToAddress);
-  const savedPropertyTypeId = useAppSelector(selectPropertyTypeId);
-  const savedDestinationPropertyTypeId = useAppSelector(selectDestinationPropertyTypeId);
+  const savedMoveScopeId = useAppSelector(selectMoveScopeId);
+  const savedDestinationMoveScopeId = useAppSelector(selectDestinationMoveScopeId);
   const savedWizardStep = useAppSelector(selectWizardStep);
   const savedMoveDate = useAppSelector(selectMoveDate);
   const savedTimeWindow = useAppSelector(selectTimeWindow);
   const savedDescription = useAppSelector(selectDescription);
   const savedSpecialtyItems = useAppSelector(selectSpecialtyItems);
-  const propertyTypeCategories = useAppSelector(selectPropertyTypeCategories);
-  const allPropertyTypes = useAppSelector(selectPropertyTypes);
-  const savedPropertyType = useAppSelector(selectPropertyTypeById(savedPropertyTypeId ?? -1));
-  const savedDestinationPropertyType = useAppSelector(
-    selectPropertyTypeById(savedDestinationPropertyTypeId ?? -1)
+  const savedIsFlexibleDate = useAppSelector(selectIsFlexibleDate);
+  const additionalServices = useAppSelector(selectAdditionalServices);
+  const moveScopeCategoriesRaw = useAppSelector(selectMoveScopeCategories);
+  const allMoveScopesRaw = useAppSelector(selectMoveScopes);
+  // Exclude the Small Moving wizard's own "Small Move" category from this
+  // (Residential) wizard's property-type picker — see `SMALL_MOVE_CATEGORY`.
+  const allMoveScopes = useMemo(
+    () => allMoveScopesRaw.filter((option) => option.category !== SMALL_MOVE_CATEGORY),
+    [allMoveScopesRaw]
+  );
+  const moveScopeCategories = useMemo(
+    () => moveScopeCategoriesRaw.filter((category) => category !== SMALL_MOVE_CATEGORY),
+    [moveScopeCategoriesRaw]
+  );
+  const savedMoveScope = useAppSelector(selectMoveScopeById(savedMoveScopeId ?? -1));
+  const savedDestinationMoveScope = useAppSelector(
+    selectMoveScopeById(savedDestinationMoveScopeId ?? -1)
   );
   const submitting = useAppSelector(selectSubmitting);
   const submitError = useAppSelector(selectSubmitError);
@@ -119,15 +146,15 @@ export function BookingFlow() {
   const [toAddress, setToAddress] = useState<AddressDetails | null>(savedToAddress);
   // Property type is picked via a bottom-sheet trigger, captured per
   // address since the pickup and destination properties can be different
-  // kinds of buildings. Seed both slots from whatever property type was
+  // kinds of buildings. Seed both slots from whatever move scope was
   // already saved (e.g. navigating back into the wizard after completing a
   // profile) — previously only "from" was restored, which silently dropped
-  // Step 2's destination property type / Access Details on remount.
-  const [selectedPropertyTypeBySlot, setSelectedPropertyTypeBySlot] = useState<
-    Record<Slot, PropertyTypeOption | null>
+  // Step 2's destination move scope / Access Details on remount.
+  const [selectedMoveScopeBySlot, setSelectedMoveScopeBySlot] = useState<
+    Record<Slot, MoveScopeOption | null>
   >({
-    from: savedPropertyType,
-    to: savedDestinationPropertyType,
+    from: savedMoveScope,
+    to: savedDestinationMoveScope,
   });
   const [moveDate, setMoveDateLocal] = useState(savedMoveDate);
   const [timeWindow, setTimeWindowLocal] = useState(savedTimeWindow);
@@ -139,11 +166,11 @@ export function BookingFlow() {
   // renders while `step === 2` and would otherwise wipe an in-progress draft
   // the moment the user taps "Next"/"Back" before pressing "Add Item".
   const [specialtyItemDraftName, setSpecialtyItemDraftName] = useState('');
-  const [specialtyItemDraftQuantity, setSpecialtyItemDraftQuantity] = useState(0);
+  const [specialtyItemDraftQuantity, setSpecialtyItemDraftQuantity] = useState(1);
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    dispatch(fetchPropertyTypes());
+    dispatch(fetchMoveScopes());
   }, [dispatch]);
 
   const handleSelectPlace = (slot: Slot, place: GooglePlaceSelection) => {
@@ -153,7 +180,7 @@ export function BookingFlow() {
       ...place,
       // Preserve any logistics fields the user already filled in if they
       // change the address search (e.g. picked the wrong suggestion first).
-      propertyType: previous?.propertyType,
+      moveScope: previous?.moveScope,
       stairsCount: previous?.stairsCount,
       parkingType: previous?.parkingType,
       hasElevator: previous?.hasElevator ?? null,
@@ -167,12 +194,12 @@ export function BookingFlow() {
   };
 
   // Shared by both slots: the same Smart Defaults apply whether it's the
-  // pickup or destination property type being chosen.
-  const buildAutoDefaultChanges = (option: PropertyTypeOption): Partial<AddressDetails> => {
-    const changes: Partial<AddressDetails> = { propertyType: formatPropertyTypeLabel(option) };
+  // pickup or destination move scope being chosen.
+  const buildAutoDefaultChanges = (option: MoveScopeOption): Partial<AddressDetails> => {
+    const changes: Partial<AddressDetails> = { moveScope: formatMoveScopeLabel(option) };
     // Basement suites and townhouses almost always mean at least one flight
     // of stairs, so default it in rather than making the user re-declare
-    // something implied by the property type itself.
+    // something implied by the move scope itself.
     if (option.isBasement || option.category === 'Townhouse') {
       changes.stairsCount = 1;
     }
@@ -185,15 +212,15 @@ export function BookingFlow() {
     return changes;
   };
 
-  const handleSelectPickupPropertyType = (option: PropertyTypeOption) => {
+  const handleSelectPickupMoveScope = (option: MoveScopeOption) => {
     animateNextLayout(); // Access Details section is about to appear/change shape.
-    setSelectedPropertyTypeBySlot((prev) => ({ ...prev, from: option }));
+    setSelectedMoveScopeBySlot((prev) => ({ ...prev, from: option }));
     handleLogisticsChange('from', buildAutoDefaultChanges(option));
   };
 
-  const handleSelectDestinationPropertyType = (option: PropertyTypeOption) => {
+  const handleSelectDestinationMoveScope = (option: MoveScopeOption) => {
     animateNextLayout();
-    setSelectedPropertyTypeBySlot((prev) => ({ ...prev, to: option }));
+    setSelectedMoveScopeBySlot((prev) => ({ ...prev, to: option }));
     handleLogisticsChange('to', buildAutoDefaultChanges(option));
   };
 
@@ -247,8 +274,8 @@ export function BookingFlow() {
   const persistDraftToStore = (stepOverride?: number) => {
     if (fromAddress) dispatch(setAddress({ slot: 'from', address: fromAddress }));
     if (toAddress) dispatch(setAddress({ slot: 'to', address: toAddress }));
-    dispatch(setPropertyTypeId(selectedPropertyTypeBySlot.from?.id ?? null));
-    dispatch(setDestinationPropertyTypeId(selectedPropertyTypeBySlot.to?.id ?? null));
+    dispatch(setMoveScopeId(selectedMoveScopeBySlot.from?.id ?? null));
+    dispatch(setDestinationMoveScopeId(selectedMoveScopeBySlot.to?.id ?? null));
     dispatch(setMoveDate(moveDate));
     dispatch(setTimeWindow(timeWindow));
     dispatch(setDescription(notes));
@@ -345,13 +372,19 @@ export function BookingFlow() {
     }
   };
 
+  const needsProfile = userExists === false;
+
   return (
-    <Container>
+    <Container style={step === 2 ? styles.scheduleBackground : undefined}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <BookingHeader
             title={STEP_TITLES[step]}
             step={step}
@@ -369,26 +402,18 @@ export function BookingFlow() {
               <Step1Locations
                 fromAddress={fromAddress}
                 toAddress={toAddress}
-                pickupPropertyType={selectedPropertyTypeBySlot.from}
-                propertyCategories={propertyTypeCategories}
-                propertyTypes={allPropertyTypes}
+                pickupMoveScope={selectedMoveScopeBySlot.from}
+                destinationMoveScope={selectedMoveScopeBySlot.to}
+                propertyCategories={moveScopeCategories}
+                moveScopes={allMoveScopes}
                 onSelectPlace={handleSelectPlace}
-                onSelectPickupPropertyType={handleSelectPickupPropertyType}
+                onSelectPickupMoveScope={handleSelectPickupMoveScope}
                 onChangePickupElevator={(hasElevator) => handleChangeElevator('from', hasElevator)}
                 onChangePickupStairs={(count) => handleLogisticsChange('from', { stairsCount: count })}
                 onChangePickupParking={(parkingType: ParkingType) =>
                   handleLogisticsChange('from', { parkingType })
                 }
-              />
-            )}
-
-            {step === 2 && (
-              <Step2Schedule
-                toAddress={toAddress}
-                destinationPropertyType={selectedPropertyTypeBySlot.to}
-                propertyCategories={propertyTypeCategories}
-                propertyTypes={allPropertyTypes}
-                onSelectDestinationPropertyType={handleSelectDestinationPropertyType}
+                onSelectDestinationMoveScope={handleSelectDestinationMoveScope}
                 onChangeDestinationElevator={(hasElevator) => handleChangeElevator('to', hasElevator)}
                 onChangeDestinationStairs={(count) =>
                   handleLogisticsChange('to', { stairsCount: count })
@@ -396,6 +421,15 @@ export function BookingFlow() {
                 onChangeDestinationParking={(parkingType: ParkingType) =>
                   handleLogisticsChange('to', { parkingType })
                 }
+                pickupLabel="Pickup Property Type"
+                pickupPlaceholder="Select property type"
+                destinationLabel="Destination Property Type"
+                destinationPlaceholder="Select destination property type"
+              />
+            )}
+
+            {step === 2 && (
+              <Step2Schedule
                 moveDate={moveDate}
                 onChangeMoveDate={setMoveDateLocal}
                 timeWindow={timeWindow}
@@ -409,6 +443,12 @@ export function BookingFlow() {
                 onChangeSpecialtyItemDraftName={setSpecialtyItemDraftName}
                 specialtyItemDraftQuantity={specialtyItemDraftQuantity}
                 onChangeSpecialtyItemDraftQuantity={setSpecialtyItemDraftQuantity}
+                isFlexibleDate={savedIsFlexibleDate}
+                onChangeIsFlexibleDate={(value: boolean) => dispatch(setIsFlexibleDate(value))}
+                additionalServices={additionalServices}
+                onToggleAdditionalService={(service: AdditionalServiceType) =>
+                  dispatch(toggleAdditionalService(service))
+                }
               />
             )}
 
@@ -416,28 +456,49 @@ export function BookingFlow() {
               <Step3Review
                 fromAddress={fromAddress}
                 toAddress={toAddress}
-                pickupPropertyType={selectedPropertyTypeBySlot.from}
-                destinationPropertyType={selectedPropertyTypeBySlot.to}
+                pickupMoveScope={selectedMoveScopeBySlot.from}
+                destinationMoveScope={selectedMoveScopeBySlot.to}
                 moveDate={moveDate}
                 timeWindow={timeWindow}
                 notes={notes}
                 specialtyItems={specialtyItems}
-                submitting={submitting}
                 submitError={submitError}
-                needsProfile={userExists === false}
-                onCreateProfile={handleCreateProfile}
-                onSubmit={handleSubmit}
-              />
-            )}
-
-            {step < TOTAL_STEPS && (
-              <Button
-                title={step === 1 ? 'Next: Schedule & Delivery' : 'Next: Review & Request Quotes'}
-                onPress={handleNext}
+                needsProfile={needsProfile}
               />
             )}
           </Layout>
         </ScrollView>
+
+        {/* Sticky bottom footer: keeps the Next/Submit action pinned to the
+            bottom of every step instead of scrolling away with the content
+            above, mirroring `PickupRouteScreen`'s footer pattern. */}
+        <View
+          style={[
+            styles.footer,
+            {
+              borderTopColor: colors.border,
+              backgroundColor: colors.background,
+              paddingBottom: Math.max(insets.bottom, spacing.md),
+            },
+          ]}
+        >
+          {step < TOTAL_STEPS ? (
+            <Button
+              title={step === 1 ? 'Next: Schedule & Delivery' : 'Next: Review & Request Quotes'}
+              onPress={handleNext}
+              disabled={step === 2 && (!moveDate || !timeWindow)}
+            />
+          ) : needsProfile ? (
+            <Button title="Create Profile" onPress={handleCreateProfile} />
+          ) : (
+            <Button
+              title={submitting ? 'Submitting...' : 'Submit Move Request'}
+              onPress={handleSubmit}
+              disabled={submitting}
+              loading={submitting}
+            />
+          )}
+        </View>
       </KeyboardAvoidingView>
     </Container>
   );
@@ -447,8 +508,24 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
     paddingVertical: spacing.lg,
+  },
+  footer: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: spacing.md,
+    marginHorizontal: -16, // Cancels Container's 16px padding so the
+    // footer's border/background span the full screen width.
+    paddingHorizontal: 16,
+  },
+  // Step 2 ("Schedule & Details") uses a light gray canvas so its white
+  // bordered cards stand out, matching the redesigned card-based layout —
+  // other steps keep Container's default themed background.
+  scheduleBackground: {
+    backgroundColor: '#F9FAFB',
   },
 });
 

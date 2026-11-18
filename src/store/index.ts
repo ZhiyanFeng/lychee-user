@@ -3,7 +3,8 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import userReducer from './slices/userSlice';
 import servicesReducer from './slices/servicesSlice';
 import movingRequestReducer from './slices/movingRequestSlice';
-import propertyTypesReducer from './slices/propertyTypesSlice';
+import smallMovingRequestReducer from './slices/smallMovingRequestSlice';
+import moveScopesReducer from './slices/moveScopesSlice';
 import openRequestReducer from './slices/openRequestSlice';
 import bidReducer from './slices/bidSlice';
 
@@ -19,7 +20,8 @@ export const store = configureStore({
     user: userReducer,
     services: servicesReducer,
     movingRequest: movingRequestReducer,
-    propertyTypes: propertyTypesReducer,
+    smallMovingRequest: smallMovingRequestReducer,
+    moveScopes: moveScopesReducer,
     openRequest: openRequestReducer,
     bid: bidReducer,
   },

@@ -30,6 +30,13 @@ interface PillGroupProps<T extends string | number = string> {
    * never touches any state/payload logic.
    */
   variant?: 'pills' | 'segmented';
+  /**
+   * `'row'` (default) wraps pills left-to-right. `'column'` stacks each
+   * pill on its own full-width row instead — useful when options have
+   * longer labels that read better as a vertical list (e.g. Small Moving's
+   * "What are you moving?" step).
+   */
+  optionsDirection?: 'row' | 'column';
 }
 
 /**
@@ -46,10 +53,12 @@ export function PillGroup<T extends string | number = string>({
   onChange,
   layout = 'stacked',
   variant = 'pills',
+  optionsDirection = 'row',
 }: PillGroupProps<T>) {
   const { colors } = useTheme();
   const isInline = layout === 'inline';
   const isSegmented = variant === 'segmented';
+  const isColumn = optionsDirection === 'column';
 
   const optionsNode = isSegmented ? (
     <View style={[styles.segmented, { borderColor: colors.border, backgroundColor: colors.border + '26' }]}>
@@ -74,7 +83,7 @@ export function PillGroup<T extends string | number = string>({
       })}
     </View>
   ) : (
-    <View style={styles.row}>
+    <View style={[styles.row, isColumn && styles.column]}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -85,6 +94,7 @@ export function PillGroup<T extends string | number = string>({
             style={[
               styles.pill,
               { borderColor: colors.border },
+              isColumn && styles.pillFullWidth,
               selected && { backgroundColor: colors.primary, borderColor: colors.primary },
             ]}
           >
@@ -138,6 +148,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: SPACING.sm,
   },
+  column: {
+    flexDirection: 'column',
+    flexWrap: 'nowrap',
+  },
   pill: {
     borderWidth: 1,
     borderRadius: 20,
@@ -146,6 +160,9 @@ const styles = StyleSheet.create({
     minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pillFullWidth: {
+    alignSelf: 'stretch',
   },
   pillText: {
     fontSize: FONT_SIZES.sm,

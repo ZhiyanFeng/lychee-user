@@ -25,7 +25,7 @@ const MONTH_LABEL_FORMAT: Intl.DateTimeFormatOptions = { month: 'long', year: 'n
  * Bottom-sheet-style month calendar for picking the move date — deliberately
  * not a raw text input, per the wizard's "no typed dates" requirement. Built
  * on the same `Modal` (transparent + slide-up) pattern as
- * `PropertyTypeSelector` rather than a native date-picker library, since
+ * `MoveScopeSelector` rather than a native date-picker library, since
  * none is installed in this project.
  */
 export function DatePickerModal({ visible, value, onSelect, onClose, minimumDate }: DatePickerModalProps) {

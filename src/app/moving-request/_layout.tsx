@@ -17,6 +17,7 @@ export default function MovingRequestLayout() {
         there's only one back control on screen, not two.
       */}
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="small-moving" options={{ headerShown: false }} />
       <Stack.Screen name="bids" options={{ title: 'Bidding Feed' }} />
     </Stack>
   );

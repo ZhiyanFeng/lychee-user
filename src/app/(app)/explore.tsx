@@ -7,7 +7,7 @@ import { useColors } from '../../hooks/useColors';
 import { spacing } from '../../../themes';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchServices, selectServices, MovingService } from '../../store/slices/servicesSlice';
-import { fetchPropertyTypes } from '../../store/slices/propertyTypesSlice';
+import { fetchMoveScopes } from '../../store/slices/moveScopesSlice';
 import { resetMovingRequest, setServiceId } from '../../store/slices/movingRequestSlice';
 
 // Local icon lookup keyed by `moving_services.code`, since the backend row
@@ -21,10 +21,18 @@ const SERVICE_ICONS: Record<string, string> = {
   STORAGE_SOLUTIONS: '📥',
 };
 
-// Services that kick off the step-by-step moving-request wizard when tapped.
+// Services that kick off a step-by-step moving-request wizard when tapped.
 const SERVICE_ROUTES: Record<string, string> = {
   RESIDENTIAL_MOVING: '/moving-request',
+  SMALL_MOVING: '/moving-request/small-moving',
 };
+
+// Services whose wizard manages its own local form state (not
+// `movingRequestSlice`) — e.g. `SmallMovingWizardScreen`'s flat
+// street/unit/city/province/postalCode addresses are a different shape
+// than that slice's Google-Places-derived `AddressDetails`. These just
+// receive the chosen `serviceId` via the route's query params instead.
+const SERVICES_USING_REDUX_DRAFT = new Set(['RESIDENTIAL_MOVING']);
 
 export default function ExploreScreen() {
   const colors = useColors();
@@ -35,24 +43,29 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     dispatch(fetchServices());
-    // Pre-warms property types so they're already loaded by the time the
+    // Pre-warms move scopes so they're already loaded by the time the
     // user reaches the moving-request wizard (thunk's `condition` guard
     // makes this a no-op if already fetched/in flight).
-    dispatch(fetchPropertyTypes());
+    dispatch(fetchMoveScopes());
   }, [dispatch]);
 
   const handleServicePress = (service: MovingService) => {
     const route = SERVICE_ROUTES[service.code];
     if (!route) return;
-    // Start the wizard fresh each time it's entered from Explore, then
-    // record which service the user picked so movingRequestSlice already
-    // has it by the time they reach the moving-request screen. The
-    // backend's createRfq contract expects a numeric serviceId.
-    dispatch(resetMovingRequest());
-    dispatch(setServiceId(Number(service.id)));
-    router.push(route as any);
+    if (SERVICES_USING_REDUX_DRAFT.has(service.code)) {
+      // Start the wizard fresh each time it's entered from Explore, then
+      // record which service the user picked so movingRequestSlice already
+      // has it by the time they reach the moving-request screen. The
+      // backend's createRfq contract expects a numeric serviceId.
+      dispatch(resetMovingRequest());
+      dispatch(setServiceId(Number(service.id)));
+      router.push(route as any);
+      return;
+    }
+    // Other wizards (e.g. Small Moving) keep their own local draft state —
+    // just hand off which service was picked via the route's params.
+    router.push({ pathname: route, params: { serviceId: String(service.id) } } as any);
   };
-
 
   const renderIcon = (code: string) => {
     const icon = SERVICE_ICONS[code];

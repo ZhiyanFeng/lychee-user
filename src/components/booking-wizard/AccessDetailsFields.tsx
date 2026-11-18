@@ -1,6 +1,6 @@
 import React from 'react';
 import { PillGroup, Text } from '../ui';
-import type { PillOption, PropertyTypeOption } from '../ui';
+import type { PillOption, MoveScopeOption } from '../ui';
 import type { AddressDetails, ParkingType } from '../../store/slices/movingRequestSlice';
 import { StyleSheet } from 'react-native';
 import { spacing } from '../../../themes';
@@ -41,7 +41,7 @@ interface AccessDetailsFieldsProps {
   /** Section heading, e.g. "Pickup Access Details" / "Destination Access Details". */
   label: string;
   address: AddressDetails;
-  propertyType: PropertyTypeOption;
+  moveScope: MoveScopeOption;
   onChangeElevator: (hasElevator: boolean) => void;
   onChangeStairs: (count: number) => void;
   onChangeParking: (parkingType: ParkingType) => void;
@@ -57,19 +57,19 @@ interface AccessDetailsFieldsProps {
  *   - House / Townhouse: no Elevator field — just a plain Stairs count
  *     (None/1/2+) and Driveway/Street parking.
  *
- * Callers are expected to only render this once a property type has been
+ * Callers are expected to only render this once a move scope has been
  * chosen (progressive disclosure lives at the call site, since the section
  * heading itself is only meaningful once there's something to show).
  */
 export function AccessDetailsFields({
   label,
   address,
-  propertyType,
+  moveScope,
   onChangeElevator,
   onChangeStairs,
   onChangeParking,
 }: AccessDetailsFieldsProps) {
-  const category = propertyType.category;
+  const category = moveScope.category;
   const isElevatorCategory = ELEVATOR_CATEGORIES.has(category);
   const isStairsOnlyCategory = STAIRS_ONLY_CATEGORIES.has(category);
 

@@ -37,6 +37,13 @@
         }
       ],
       "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow LycheeTech Moving to access your photos to add them to your moving request.",
+          "cameraPermission": "Allow LycheeTech Moving to access your camera to take photos for your moving request."
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-firebase/crashlytics"

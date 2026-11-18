@@ -30,6 +30,15 @@ export interface GooglePlaceSelection {
   city?: string;
   stateProvince?: string;
   country?: string;
+  /**
+   * `street_number` + `route` joined (e.g. "123 Main St"), for callers that
+   * need a plain street-line field (vs. the full `formattedAddress` blob) —
+   * e.g. `SmallMovingWizardScreen`'s flat `RfqAddressInput` shape. Falls
+   * back to `undefined` if Google didn't return either component (rare,
+   * but happens for some rural/PO-box addresses), in which case callers
+   * should fall back to `formattedAddress`.
+   */
+  streetAddress?: string;
 }
 
 interface AddressComponentLike {
@@ -45,11 +54,16 @@ function parseAddressComponents(components: AddressComponentLike[] | null = []) 
   const findByType = (type: string) =>
     (components ?? []).find((c) => c.types?.includes(type));
 
+  const streetNumber = findByType('street_number')?.name;
+  const route = findByType('route')?.name;
+  const streetAddress = [streetNumber, route].filter(Boolean).join(' ') || undefined;
+
   return {
     postalCode: findByType('postal_code')?.name,
     city: findByType('locality')?.name ?? findByType('postal_town')?.name,
     stateProvince: findByType('administrative_area_level_1')?.name,
     country: findByType('country')?.name,
+    streetAddress,
   };
 }
 

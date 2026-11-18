@@ -2,6 +2,7 @@ import { createAsyncThunk, createSelector, createSlice, PayloadAction } from '@r
 import { apiService } from '../../services';
 import { API_ENDPOINTS } from '../../constants';
 import type { RootState } from '../index';
+import type { AdditionalServiceType } from '../../types';
 /**
  * Client-side "from"/"to" address capture. Richer than the backend actually
  * persists — the `rfqs` table only has flat `origin_address`/
@@ -13,7 +14,7 @@ import type { RootState } from '../index';
  */
 /**
  * Where the moving truck can park at an address. The options actually
- * offered depend on the property type's category — see `StepLocations`
+ * offered depend on the move scope's category — see `StepLocations`
  * (Apartment/Storage -> loading_bay|street, House/Townhouse ->
  * driveway|street) — but the stored value is one flat union so the field
  * means the same thing regardless of which pill set produced it.
@@ -28,7 +29,7 @@ export interface AddressDetails {
   city?: string;
   stateProvince?: string;
   country?: string;
-  propertyType?: string;
+  moveScope?: string;
   unitApartmentNumber?: string;
   /**
    * `null` = not yet answered. Only meaningful for Apartment/Storage
@@ -65,17 +66,17 @@ interface MovingRequestState {
   toAddress: AddressDetails | null;
   // Sent to the backend as a number (createRfq's `serviceId`).
   serviceId: number | null;
-  // Selected property-type id (propertyTypesSlice) for the PICKUP address,
+  // Selected move-scope id (moveScopesSlice) for the PICKUP address,
   // e.g. "Studio Apartment". Not part of the backend's createRfq contract
   // today — kept locally for the Access Details UI logic, but not sent on
   // submit.
-  propertyTypeId: number | null;
-  // Same as `propertyTypeId` above, but for the DESTINATION address. Kept
-  // as a separate field (rather than reusing `propertyTypeId`) since the
-  // pickup and destination property types are independent selections —
+  moveScopeId: number | null;
+  // Same as `moveScopeId` above, but for the DESTINATION address. Kept
+  // as a separate field (rather than reusing `moveScopeId`) since the
+  // pickup and destination move scopes are independent selections —
   // without this, navigating away mid-wizard (e.g. to complete a profile)
-  // and back would silently lose Step 2's property type / Access Details.
-  destinationPropertyTypeId: number | null;
+  // and back would silently lose Step 2's move scope / Access Details.
+  destinationMoveScopeId: number | null;
   // createRfq's `moveDate` — kept as a plain 'YYYY-MM-DD' string client-side.
   moveDate: string;
   // Coarse delivery window (e.g. "Morning"/"Afternoon"/"Evening") rather than
@@ -89,6 +90,12 @@ interface MovingRequestState {
   // Structured heavy/special items list — sent to the backend as
   // `specialtyItems`. Distinct from `description`/`notes` above.
   specialtyItems: SpecialtyItem[];
+  // Step 2's "Flexible with move date (±2 days)" switch — sent to the
+  // backend as the top-level `isFlexibleDate` field.
+  isFlexibleDate: boolean;
+  // Step 2's multi-select "Additional Services" chips — sent to the
+  // backend as the top-level `additionalServices` array.
+  additionalServices: AdditionalServiceType[];
   // Which step of the 3-step wizard the user was last on (1 = Locations,
   // 2 = Destination & Schedule, 3 = Review & Submit). Persisted so that
   // navigating away mid-wizard (e.g. to complete a profile from the Step 3
@@ -104,12 +111,14 @@ const initialState: MovingRequestState = {
   fromAddress: null,
   toAddress: null,
   serviceId: null,
-  propertyTypeId: null,
-  destinationPropertyTypeId: null,
+  moveScopeId: null,
+  destinationMoveScopeId: null,
   moveDate: '',
   timeWindow: '',
   description: '',
   specialtyItems: [],
+  isFlexibleDate: false,
+  additionalServices: [],
   wizardStep: 1,
   submitting: false,
   submitError: null,
@@ -149,14 +158,24 @@ function addressToPayload(address: AddressDetails | null) {
  *   moveDate: 'YYYY-MM-DD',
  *   notes: string,
  *   specialtyItems: [{ itemName, quantity, notes }],
+ *   isFlexibleDate: boolean,
+ *   additionalServices: AdditionalServiceType[],
  * }
  */
 export const submitMovingRequest = createAsyncThunk(
   'movingRequest/submit',
   async (_, { getState }) => {
     const state = getState() as RootState;
-    const { fromAddress, toAddress, serviceId, moveDate, description, specialtyItems } =
-      state.movingRequest;
+    const {
+      fromAddress,
+      toAddress,
+      serviceId,
+      moveDate,
+      description,
+      specialtyItems,
+      isFlexibleDate,
+      additionalServices,
+    } = state.movingRequest;
     const payload = {
       serviceId: serviceId ?? undefined,
       originAddress: addressToPayload(fromAddress),
@@ -164,6 +183,8 @@ export const submitMovingRequest = createAsyncThunk(
       moveDate,
       notes: description.trim(),
       specialtyItems,
+      isFlexibleDate,
+      additionalServices,
     };
     const response = await apiService.post<Record<string, any>>(API_ENDPOINTS.RFQS, payload);
     const rfqId = String(response?.id ?? response?.data?.id ?? '');
@@ -187,7 +208,7 @@ const movingRequestSlice = createSlice({
         state.toAddress = address;
       }
     },
-    // Partial patch — used for the custom logistics fields (propertyType, unit,
+    // Partial patch — used for the custom logistics fields (moveScope, unit,
     // elevator, parking) that the user fills in after selecting a place.
     updateAddressDetails: (
       state,
@@ -201,11 +222,11 @@ const movingRequestSlice = createSlice({
     setServiceId: (state, action: PayloadAction<number | null>) => {
       state.serviceId = action.payload;
     },
-    setPropertyTypeId: (state, action: PayloadAction<number | null>) => {
-      state.propertyTypeId = action.payload;
+    setMoveScopeId: (state, action: PayloadAction<number | null>) => {
+      state.moveScopeId = action.payload;
     },
-    setDestinationPropertyTypeId: (state, action: PayloadAction<number | null>) => {
-      state.destinationPropertyTypeId = action.payload;
+    setDestinationMoveScopeId: (state, action: PayloadAction<number | null>) => {
+      state.destinationMoveScopeId = action.payload;
     },
     setWizardStep: (state, action: PayloadAction<number>) => {
       state.wizardStep = action.payload;
@@ -227,6 +248,20 @@ const movingRequestSlice = createSlice({
     },
     removeSpecialtyItem: (state, action: PayloadAction<number>) => {
       state.specialtyItems.splice(action.payload, 1);
+    },
+    setIsFlexibleDate: (state, action: PayloadAction<boolean>) => {
+      state.isFlexibleDate = action.payload;
+    },
+    // Toggles a single chip on/off — used directly by Step2Schedule's
+    // "Additional Services" chip `onPress` rather than requiring the caller
+    // to compute the next array itself.
+    toggleAdditionalService: (state, action: PayloadAction<AdditionalServiceType>) => {
+      const service = action.payload;
+      if (state.additionalServices.includes(service)) {
+        state.additionalServices = state.additionalServices.filter((item) => item !== service);
+      } else {
+        state.additionalServices.push(service);
+      }
     },
     resetMovingRequest: () => initialState,
   },
@@ -250,8 +285,8 @@ export const {
   setAddress,
   updateAddressDetails,
   setServiceId,
-  setPropertyTypeId,
-  setDestinationPropertyTypeId,
+  setMoveScopeId,
+  setDestinationMoveScopeId,
   setWizardStep,
   setMoveDate,
   setTimeWindow,
@@ -259,6 +294,8 @@ export const {
   setSpecialtyItems,
   addSpecialtyItem,
   removeSpecialtyItem,
+  setIsFlexibleDate,
+  toggleAdditionalService,
   resetMovingRequest,
 } = movingRequestSlice.actions;
 export default movingRequestSlice.reducer;
@@ -276,10 +313,10 @@ export const selectMovingAddresses = createSelector(
   (fromAddress, toAddress) => ({ fromAddress, toAddress })
 );
 export const selectServiceId = (state: MovingRequestSliceState) => state.movingRequest.serviceId;
-export const selectPropertyTypeId = (state: MovingRequestSliceState) =>
-  state.movingRequest.propertyTypeId;
-export const selectDestinationPropertyTypeId = (state: MovingRequestSliceState) =>
-  state.movingRequest.destinationPropertyTypeId;
+export const selectMoveScopeId = (state: MovingRequestSliceState) =>
+  state.movingRequest.moveScopeId;
+export const selectDestinationMoveScopeId = (state: MovingRequestSliceState) =>
+  state.movingRequest.destinationMoveScopeId;
 export const selectWizardStep = (state: MovingRequestSliceState) => state.movingRequest.wizardStep;
 export const selectMoveDate = (state: MovingRequestSliceState) => state.movingRequest.moveDate;
 export const selectTimeWindow = (state: MovingRequestSliceState) => state.movingRequest.timeWindow;
@@ -287,6 +324,10 @@ export const selectTimeWindow = (state: MovingRequestSliceState) => state.moving
 export const selectDescription = (state: MovingRequestSliceState) => state.movingRequest.description;
 export const selectSpecialtyItems = (state: MovingRequestSliceState) =>
   state.movingRequest.specialtyItems;
+export const selectIsFlexibleDate = (state: MovingRequestSliceState) =>
+  state.movingRequest.isFlexibleDate;
+export const selectAdditionalServices = (state: MovingRequestSliceState) =>
+  state.movingRequest.additionalServices;
 export const selectSubmitting = (state: MovingRequestSliceState) => state.movingRequest.submitting;
 export const selectSubmitError = (state: MovingRequestSliceState) => state.movingRequest.submitError;
 export const selectSubmittedRfqId = (state: MovingRequestSliceState) =>

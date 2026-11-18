@@ -4,7 +4,11 @@ const { inspectorBabelPlugin } = require('react-native-dev-inspector/metro');
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
+    // `jsxImportSource: 'nativewind'` + the `nativewind/babel` preset below
+    // compile `className` props on RN primitives into StyleSheet objects at
+    // build time, so Tailwind utility classes work the same way they do on
+    // the web without any runtime CSS engine.
+    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
     plugins: [
       // Embeds precise file/line source info at compile time, so tapping a
       // component in the Inspector overlay (src/app/_layout.tsx) reliably

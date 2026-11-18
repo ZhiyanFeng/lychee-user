@@ -2,7 +2,7 @@ import { createAsyncThunk, createSelector, createSlice, PayloadAction } from '@r
 import { apiService } from '../../services';
 import { API_ENDPOINTS } from '../../constants';
 /**
- * Mirrors the backend `/property-types` response (`PropertyTypeResponse`):
+ * Mirrors the backend `/move-scopes` response (`MoveScopeResponse`):
  *   {
  *     "id": 1,
  *     "slug": "studio-apartment",
@@ -21,7 +21,7 @@ import { API_ENDPOINTS } from '../../constants';
  * picker), and to pre-estimate total volume (`estimatedCubicFeet`) before/
  * instead of itemizing every piece of furniture individually.
  */
-export interface PropertyType {
+export interface MoveScope {
   id: number;
   slug: string;
   displayName: string;
@@ -33,12 +33,12 @@ export interface PropertyType {
   displayOrder: number;
   isActive: boolean;
 }
-interface PropertyTypesState {
-  items: PropertyType[];
+interface MoveScopesState {
+  items: MoveScope[];
   loading: boolean;
   error: string | null;
 }
-const initialState: PropertyTypesState = {
+const initialState: MoveScopesState = {
   items: [],
   loading: false,
   error: null,
@@ -48,8 +48,8 @@ const initialState: PropertyTypesState = {
 // or a Spring-style `{ content: [...] }` page, and field casing can drift
 // between snake_case/camelCase) — same normalization approach already used
 // for inventory items / moving services / users.
-type RawPropertyType = Record<string, any>;
-function extractPropertyTypesArray(response: unknown): RawPropertyType[] {
+type RawMoveScope = Record<string, any>;
+function extractMoveScopesArray(response: unknown): RawMoveScope[] {
   if (Array.isArray(response)) return response;
   if (response && typeof response === 'object') {
     const obj = response as Record<string, any>;
@@ -59,7 +59,7 @@ function extractPropertyTypesArray(response: unknown): RawPropertyType[] {
   }
   return [];
 }
-function normalizePropertyType(raw: RawPropertyType): PropertyType {
+function normalizeMoveScope(raw: RawMoveScope): MoveScope {
   const roomCount = raw.roomCount ?? raw.room_count;
   return {
     id: Number(raw.id),
@@ -74,16 +74,16 @@ function normalizePropertyType(raw: RawPropertyType): PropertyType {
     isActive: raw.isActive ?? raw.is_active ?? true,
   };
 }
-export const fetchPropertyTypes = createAsyncThunk(
-  'propertyTypes/fetch',
+export const fetchMoveScopes = createAsyncThunk(
+  'moveScopes/fetch',
   async () => {
-    const response = await apiService.get<unknown>(API_ENDPOINTS.PROPERTY_TYPES);
-    return extractPropertyTypesArray(response)
-      .map(normalizePropertyType)
+    const response = await apiService.get<unknown>(API_ENDPOINTS.MOVE_SCOPES);
+    return extractMoveScopesArray(response)
+      .map(normalizeMoveScope)
       // Inactive types shouldn't be selectable in the wizard; `displayOrder`
       // is the backend's intended presentation order (e.g. within a group,
       // studio before 1-bedroom before 2-bedroom).
-      .filter((propertyType) => propertyType.isActive)
+      .filter((moveScope) => moveScope.isActive)
       .sort((a, b) => a.displayOrder - b.displayOrder);
   },
   {
@@ -91,56 +91,56 @@ export const fetchPropertyTypes = createAsyncThunk(
     // flight) — safe to dispatch this thunk from every screen that needs it
     // without worrying about redundant refetches.
     condition: (_, { getState }) => {
-      const { propertyTypes } = getState() as { propertyTypes: PropertyTypesState };
-      return !propertyTypes.loading && propertyTypes.items.length === 0;
+      const { moveScopes } = getState() as { moveScopes: MoveScopesState };
+      return !moveScopes.loading && moveScopes.items.length === 0;
     },
   }
 );
-const propertyTypesSlice = createSlice({
-  name: 'propertyTypes',
+const moveScopesSlice = createSlice({
+  name: 'moveScopes',
   initialState,
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchPropertyTypes.pending, (state) => {
+      .addCase(fetchMoveScopes.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchPropertyTypes.fulfilled, (state, action: PayloadAction<PropertyType[]>) => {
+      .addCase(fetchMoveScopes.fulfilled, (state, action: PayloadAction<MoveScope[]>) => {
         state.items = action.payload;
         state.loading = false;
       })
-      .addCase(fetchPropertyTypes.rejected, (state, action) => {
+      .addCase(fetchMoveScopes.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message ?? 'Failed to load property types';
+        state.error = action.error.message ?? 'Failed to load move scopes';
       });
   },
 });
-export default propertyTypesSlice.reducer;
+export default moveScopesSlice.reducer;
 // ---------------------------------------------------------------------------
 // Selectors
 // ---------------------------------------------------------------------------
-type PropertyTypesSliceState = { propertyTypes: PropertyTypesState };
-export const selectPropertyTypes = (state: PropertyTypesSliceState) => state.propertyTypes.items;
-export const selectPropertyTypesLoading = (state: PropertyTypesSliceState) =>
-  state.propertyTypes.loading;
-export const selectPropertyTypesError = (state: PropertyTypesSliceState) =>
-  state.propertyTypes.error;
-export const selectPropertyTypeById =
-  (id: number) => (state: PropertyTypesSliceState) =>
-    state.propertyTypes.items.find((propertyType) => propertyType.id === id) ?? null;
-export const selectPropertyTypeBySlug =
-  (slug: string) => (state: PropertyTypesSliceState) =>
-    state.propertyTypes.items.find((propertyType) => propertyType.slug === slug) ?? null;
-// Distinct, order-preserving list of property-type categories (e.g.
+type MoveScopesSliceState = { moveScopes: MoveScopesState };
+export const selectMoveScopes = (state: MoveScopesSliceState) => state.moveScopes.items;
+export const selectMoveScopesLoading = (state: MoveScopesSliceState) =>
+  state.moveScopes.loading;
+export const selectMoveScopesError = (state: MoveScopesSliceState) =>
+  state.moveScopes.error;
+export const selectMoveScopeById =
+  (id: number) => (state: MoveScopesSliceState) =>
+    state.moveScopes.items.find((moveScope) => moveScope.id === id) ?? null;
+export const selectMoveScopeBySlug =
+  (slug: string) => (state: MoveScopesSliceState) =>
+    state.moveScopes.items.find((moveScope) => moveScope.slug === slug) ?? null;
+// Distinct, order-preserving list of move-scope categories (e.g.
 // "Apartment", "House", "Office") — drives the category tabs at the top of
-// the moving-request wizard's property-type picker.
-export const selectPropertyTypeCategories = createSelector(
-  selectPropertyTypes,
+// the moving-request wizard's move-scope picker.
+export const selectMoveScopeCategories = createSelector(
+  selectMoveScopes,
   (items) => Array.from(new Set(items.map((item) => item.category))).filter(Boolean)
 );
-// Factory for a selector scoped to one category's property types — the pill
+// Factory for a selector scoped to one category's move scopes — the pill
 // cards only need to show options within the active tab's category.
-export const selectPropertyTypesByCategory =
-  (category: string | null) => (state: PropertyTypesSliceState) =>
-    category ? state.propertyTypes.items.filter((item) => item.category === category) : [];
+export const selectMoveScopesByCategory =
+  (category: string | null) => (state: MoveScopesSliceState) =>
+    category ? state.moveScopes.items.filter((item) => item.category === category) : [];

@@ -1,7 +1,9 @@
 // API base URL
 // NOTE: 127.0.0.1/localhost refers to the device/emulator itself, NOT your
 // dev machine — that's why requests were failing with "Network Error".
-//   - Physical device: use your machine's LAN IP (found via `hostname -I`)
+//   - Physical device: use your machine's LAN IP (found via `hostname -I`) —
+//     the device and dev machine must be on the same Wi-Fi network, and the
+//     backend must bind to 0.0.0.0 (all interfaces), not just 127.0.0.1.
 //   - Android Emulator: use 10.0.2.2 instead (special alias to host machine)
 //   - iOS Simulator: 127.0.0.1 works fine (shares host network)
 export const API_BASE_URL = __DEV__
@@ -61,7 +63,12 @@ export const API_ENDPOINTS = {
   // Firebase ID token (never sent by the client); status_id defaults to the
   // initial rfq_statuses row server-side too — the client never sets it.
   RFQS: '/rfqs',
-  PROPERTY_TYPES: '/property-types',
+  // "Stitch-at-the-End" photo upload pattern (SmallMovingWizardScreen):
+  // the client asks for a short-lived S3 presigned PUT URL per photo here,
+  // uploads the raw bytes directly to S3 (never through this backend), then
+  // only sends the resulting `s3ObjectKeys` as part of the final RFQS POST.
+  MEDIA_PRESIGN: '/media/presign',
+  MOVE_SCOPES: '/move-scopes',
   // Open (in-progress/unconfirmed) requests for a given backend user — an
   // RFQ that's been submitted but hasn't been completed/canceled yet
   // (`status: "OPEN"`). userId is the backend `users.id` (NOT the Firebase

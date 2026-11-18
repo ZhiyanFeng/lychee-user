@@ -77,7 +77,11 @@ export const Button: React.FC<ButtonProps> = ({
         {
           backgroundColor: getBackgroundColor(),
           borderWidth: variant === 'outline' ? 1 : 0,
-          borderColor: colors.primary,
+          // Only set an opaque borderColor for the outline variant. Leaving
+          // it set to `colors.primary` even when `borderWidth: 0` causes a
+          // jagged/uneven rounded-corner artifact on Android, since the
+          // renderer still anti-aliases the corner against that color.
+          borderColor: variant === 'outline' ? colors.primary : 'transparent',
           ...getPadding(),
         },
         style,
@@ -109,6 +113,7 @@ export const Button: React.FC<ButtonProps> = ({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
+    overflow: 'hidden', // keeps the rounded corners crisp against the solid fill on both platforms
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,

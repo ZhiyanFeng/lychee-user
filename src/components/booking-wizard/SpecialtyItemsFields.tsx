@@ -46,61 +46,62 @@ export function SpecialtyItemsFields({
 }: SpecialtyItemsFieldsProps) {
   const { colors } = useTheme();
 
-  const canAdd = draftName.trim().length > 0 && draftQuantity > 0;
+  const canAdd = draftName.trim().length > 0 && draftQuantity >= 1;
 
   const handleAdd = () => {
     const itemName = draftName.trim();
-    if (!itemName || draftQuantity <= 0) return;
+    if (!itemName || draftQuantity < 1) return;
     onAdd({ itemName, quantity: draftQuantity, notes: '' });
     onChangeDraftName('');
-    onChangeDraftQuantity(0);
+    onChangeDraftQuantity(1);
   };
 
   return (
     <View style={styles.container}>
       <Text style={[styles.label, { color: colors.text }]}>Heavy / Special Items (optional)</Text>
 
-      {items.map((item, index) => (
-        <View key={`${item.itemName}-${index}`} style={[styles.row, { borderColor: colors.border }]}>
-          <View style={styles.rowText}>
-            <Text style={[styles.rowTitle, { color: colors.text }]}>
+      <View className="flex-row flex-wrap gap-2 mb-2">
+        {items.map((item, index) => (
+          <View
+            key={`${item.itemName}-${index}`}
+            className="flex-row items-center bg-gray-100 border border-gray-200 rounded-full pl-3 pr-1 py-1"
+          >
+            <Text className="text-gray-800 font-medium mr-1">
               {item.itemName} × {item.quantity}
             </Text>
+            <Pressable onPress={() => onRemove(index)} hitSlop={12} className="p-1">
+              <Feather name="x" size={16} color="#374151" />
+            </Pressable>
           </View>
-          <Pressable onPress={() => onRemove(index)} hitSlop={12} style={styles.removeButton}>
-            <Feather name="x" size={18} color={colors.text} />
-          </Pressable>
-        </View>
-      ))}
+        ))}
+      </View>
 
-      <View style={[styles.draftCard, { borderColor: colors.border }]}>
-        <View style={styles.draftRow}>
+      <View className="gap-2">
+        <View className="flex-row items-center gap-2">
           <TextInput
             value={draftName}
             onChangeText={onChangeDraftName}
             placeholder="e.g. Piano, safe, treadmill..."
-            placeholderTextColor={colors.border}
-            style={[
-              styles.draftInput,
-              styles.nameInput,
-              { color: colors.text, borderColor: colors.border },
-            ]}
+            placeholderTextColor="#6B7280"
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-base text-gray-900"
           />
-          <View style={styles.stepper}>
+          <View className="flex-row items-center gap-2">
             <Pressable
-              onPress={() => onChangeDraftQuantity(Math.max(0, draftQuantity - 1))}
+              onPress={() => onChangeDraftQuantity(Math.max(1, draftQuantity - 1))}
               hitSlop={8}
-              style={[styles.stepperButton, { borderColor: colors.border }]}
+              className="w-9 h-9 border border-gray-200 rounded-full items-center justify-center"
             >
-              <Feather name="minus" size={16} color={colors.text} />
+              <Feather name="minus" size={16} color="#374151" />
             </Pressable>
-            <Text style={[styles.stepperValue, { color: colors.text }]}>{draftQuantity}</Text>
+            <Text className="text-base font-semibold text-gray-900 min-w-[24px] text-center">
+              {draftQuantity}
+            </Text>
             <Pressable
               onPress={() => onChangeDraftQuantity(draftQuantity + 1)}
               hitSlop={8}
-              style={[styles.stepperButton, { borderColor: colors.border }]}
+              className="w-9 h-9 border border-gray-200 rounded-full items-center justify-center"
             >
-              <Feather name="plus" size={16} color={colors.text} />
+              <Feather name="plus" size={16} color="#374151" />
             </Pressable>
           </View>
         </View>
@@ -108,14 +109,14 @@ export function SpecialtyItemsFields({
         <Pressable
           onPress={handleAdd}
           disabled={!canAdd}
-          style={[
-            styles.addButton,
-            { borderColor: colors.primary },
-            !canAdd && styles.addButtonDisabled,
-          ]}
+          className={`flex-row items-center justify-center gap-1 border rounded-xl min-h-[44px] ${
+            canAdd ? 'border-blue-600' : 'border-gray-200 opacity-50'
+          }`}
         >
-          <Feather name="plus-circle" size={18} color={colors.primary} />
-          <Text style={[styles.addButtonText, { color: colors.primary }]}>Add Item</Text>
+          <Feather name="plus-circle" size={18} color={canAdd ? '#2563EB' : '#9CA3AF'} />
+          <Text className={`font-semibold ${canAdd ? 'text-blue-600' : 'text-gray-400'}`}>
+            Add Item
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -130,86 +131,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     fontWeight: '600',
     marginBottom: SPACING.xs,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
-  rowText: {
-    flex: 1,
-    paddingRight: SPACING.sm,
-  },
-  rowTitle: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-  },
-  removeButton: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  draftCard: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  draftInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    fontSize: FONT_SIZES.md,
-    minHeight: 44,
-  },
-  draftRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  nameInput: {
-    flex: 1,
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  stepperButton: {
-    width: 36,
-    height: 36,
-    borderWidth: 1,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperValue: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    borderWidth: 1,
-    borderRadius: 8,
-    minHeight: 44,
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
-  },
-  addButtonText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
   },
 });
 

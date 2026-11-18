@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Button, Text, formatPropertyTypeLabel } from '../ui';
-import type { PropertyTypeOption } from '../ui';
+import { Text, formatMoveScopeLabel } from '../ui';
+import type { MoveScopeOption } from '../ui';
 import type { AddressDetails, SpecialtyItem } from '../../store/slices/movingRequestSlice';
 import { useColors } from '../../hooks/useColors';
 import { formatDisplayDate } from '../../utils/date';
@@ -10,49 +10,44 @@ import { spacing } from '../../../themes';
 interface Step3ReviewProps {
   fromAddress: AddressDetails | null;
   toAddress: AddressDetails | null;
-  pickupPropertyType: PropertyTypeOption | null;
-  destinationPropertyType: PropertyTypeOption | null;
+  pickupMoveScope: MoveScopeOption | null;
+  destinationMoveScope: MoveScopeOption | null;
   moveDate: string;
   timeWindow: string;
   notes: string;
   specialtyItems: SpecialtyItem[];
-  submitting: boolean;
   submitError: string | null;
-  /** True if the signed-in Firebase user has no `users` row yet — the Submit
-   * button is replaced entirely by a "Create Profile" button in this case
-   * (see `onCreateProfile`), since the backend has nothing to attach the
-   * request to without a profile. */
+  /** True if the signed-in Firebase user has no `users` row yet — surfaces a
+   * "Complete your profile first" banner in that case; the actual
+   * Submit/Create Profile action lives in the wizard's sticky bottom
+   * footer (see `BookingFlow`), not in this component. */
   needsProfile: boolean;
-  /** Navigates to /profile/edit; only called/rendered when `needsProfile` is true. */
-  onCreateProfile: () => void;
-  onSubmit: () => void;
 }
 
 /**
  * Step 3 of the booking wizard: a read-only summary of everything captured
- * in steps 1-2, an explainer banner for the hourly-bidding pricing model
- * (no fixed quote shown here — movers bid after reviewing logistics), and
- * the final submit action.
+ * in steps 1-2, and an explainer banner for the hourly-bidding pricing model
+ * (no fixed quote shown here — movers bid after reviewing logistics). The
+ * final Submit/Create Profile action is rendered by the parent's sticky
+ * bottom footer, not here, so it stays visible at the bottom of the screen
+ * while this summary scrolls.
  */
 export function Step3Review({
   fromAddress,
   toAddress,
-  pickupPropertyType,
-  destinationPropertyType,
+  pickupMoveScope,
+  destinationMoveScope,
   moveDate,
   timeWindow,
   notes,
   specialtyItems,
-  submitting,
   submitError,
   needsProfile,
-  onCreateProfile,
-  onSubmit,
 }: Step3ReviewProps) {
   const colors = useColors();
-  const pickupLabel = pickupPropertyType ? ` (${formatPropertyTypeLabel(pickupPropertyType)})` : '';
-  const dropoffLabel = destinationPropertyType
-    ? ` (${formatPropertyTypeLabel(destinationPropertyType)})`
+  const pickupLabel = pickupMoveScope ? ` (${formatMoveScopeLabel(pickupMoveScope)})` : '';
+  const dropoffLabel = destinationMoveScope
+    ? ` (${formatMoveScopeLabel(destinationMoveScope)})`
     : '';
   const specialtyItemsSummary = specialtyItems
     .map((item) => `${item.itemName} x${item.quantity}`)
@@ -117,16 +112,6 @@ export function Step3Review({
           {submitError}
         </Text>
       ) : null}
-
-      {needsProfile ? (
-        <Button title="Create Profile" onPress={onCreateProfile} />
-      ) : (
-        <Button
-          title={submitting ? 'Submitting...' : 'Submit Move Request'}
-          onPress={onSubmit}
-          disabled={submitting}
-        />
-      )}
     </View>
   );
 }

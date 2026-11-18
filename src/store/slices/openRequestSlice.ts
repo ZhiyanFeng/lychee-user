@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { apiService } from '../../services';
 import { API_ENDPOINTS } from '../../constants';
+import type { AdditionalServiceType } from '../../types';
 
 /**
  * Mirrors the nested address objects inside GET /user/{userId}/open's
@@ -62,6 +63,10 @@ export interface OpenRequest {
   specialtyItems: OpenRequestSpecialtyItem[];
   status: string;
   createdAt: string | null;
+  /** "Flexible with move date (±2 days)" switch — always present in responses, defaults to `false` if the backend omitted it. */
+  isFlexibleDate: boolean;
+  /** Selected "Additional Services" chips — always present in responses, defaults to `[]` if the backend omitted it. */
+  additionalServices: AdditionalServiceType[];
 }
 
 interface OpenRequestState {
@@ -134,6 +139,10 @@ function normalizeOpenRequest(raw: RawOpenRequest): OpenRequest {
       : [],
     status: raw.status ?? '',
     createdAt: raw.createdAt ?? raw.created_at ?? null,
+    isFlexibleDate: Boolean(raw.isFlexibleDate ?? raw.is_flexible_date ?? false),
+    additionalServices: Array.isArray(raw.additionalServices ?? raw.additional_services)
+      ? (raw.additionalServices ?? raw.additional_services)
+      : [],
   };
 }
 
